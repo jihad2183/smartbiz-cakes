@@ -1,0 +1,4 @@
+- [x] Add four additional cakes with photos.
+- [x] Add direct Add to Cart buttons and verify cart updates.
+- [x] Complete admin product, content, order, customer and approval management.
+- [x] Explain admin access and verify permission boundaries.

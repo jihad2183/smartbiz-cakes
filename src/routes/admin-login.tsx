@@ -1,0 +1,47 @@
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useState } from "react";
+import { toast } from "sonner";
+import { ShieldCheck } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+
+export const Route = createFileRoute("/admin-login")({
+  head: () => ({ meta: [{ title: "Admin login | Smart Cake Shop" }, { name: "description", content: "Sign in to the Smart Cake Shop admin portal." }, { property: "og:title", content: "Admin login | Smart Cake Shop" }, { property: "og:description", content: "Administrator sign-in for Smart Cake Shop." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }, { name: "robots", content: "noindex" }] }),
+  component: AdminLogin,
+});
+
+function AdminLogin() {
+  const navigate = useNavigate();
+  const { refresh } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error || !data.user) { setBusy(false); toast.error(error?.message ?? "Sign-in failed"); return; }
+    const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: data.user.id, _role: "admin" });
+    await refresh();
+    setBusy(false);
+    if (!isAdmin) { toast.error("This account is not an approved administrator."); navigate({ to: "/admin" }); return; }
+    toast.success("Welcome to the admin portal");
+    navigate({ to: "/admin" });
+  };
+
+  return (
+    <main className="mx-auto max-w-sm px-4 py-16">
+      <ShieldCheck className="mb-3 h-10 w-10 text-primary" />
+      <h1 className="text-3xl">Admin portal login</h1>
+      <p className="mt-2 text-sm text-muted-foreground">Only approved administrators can enter.</p>
+      <form onSubmit={submit} className="mt-6 space-y-3">
+        <Input type="email" placeholder="Admin email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        <Button className="w-full" type="submit" disabled={busy}>Sign in as admin</Button>
+      </form>
+    </main>
+  );
+}

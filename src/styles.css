@@ -1,0 +1,82 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-display: "Fraunces", Georgia, serif;
+  --font-sans: "DM Sans", system-ui, sans-serif;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-cocoa: var(--cocoa);
+  --color-cocoa-foreground: var(--cocoa-foreground);
+}
+
+:root {
+  --radius: 0.875rem;
+  --background: oklch(0.975 0.012 75);
+  --foreground: oklch(0.27 0.04 35);
+  --card: oklch(0.99 0.008 75);
+  --card-foreground: oklch(0.27 0.04 35);
+  --popover: oklch(0.99 0.008 75);
+  --popover-foreground: oklch(0.27 0.04 35);
+  --primary: oklch(0.58 0.12 10);
+  --primary-foreground: oklch(0.99 0.008 75);
+  --secondary: oklch(0.93 0.03 20);
+  --secondary-foreground: oklch(0.35 0.07 15);
+  --muted: oklch(0.94 0.015 70);
+  --muted-foreground: oklch(0.5 0.03 40);
+  --accent: oklch(0.9 0.05 25);
+  --accent-foreground: oklch(0.3 0.06 20);
+  --destructive: oklch(0.55 0.2 27);
+  --destructive-foreground: oklch(0.99 0 0);
+  --border: oklch(0.89 0.02 60);
+  --input: oklch(0.89 0.02 60);
+  --ring: oklch(0.58 0.12 10);
+  --cocoa: oklch(0.3 0.045 40);
+  --cocoa-foreground: oklch(0.96 0.015 75);
+  --shadow-soft: 0 18px 40px -22px oklch(0.3 0.05 30 / 0.35);
+}
+
+@layer base {
+  * { border-color: var(--color-border); }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    min-width: 320px;
+    overflow-x: hidden;
+  }
+  img { max-width: 100%; }
+  h1, h2, h3 { font-family: var(--font-display); letter-spacing: -0.01em; }
+}
+
+@utility shadow-soft { box-shadow: var(--shadow-soft); }
+
+@media (max-width: 640px) {
+  input, select, textarea { min-height: 2.75rem; }
+}
