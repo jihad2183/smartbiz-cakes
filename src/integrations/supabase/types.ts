@@ -224,6 +224,9 @@ export type Database = {
           delivery_area: string | null;
           delivery_charge: number;
           delivery_date: string | null;
+          delivery_latitude: number | null;
+          delivery_longitude: number | null;
+          delivery_map_address: string | null;
           discount: number;
           fulfillment_type: string;
           id: string;
@@ -246,6 +249,9 @@ export type Database = {
           delivery_area?: string | null;
           delivery_charge?: number;
           delivery_date?: string | null;
+          delivery_latitude?: number | null;
+          delivery_longitude?: number | null;
+          delivery_map_address?: string | null;
           discount?: number;
           fulfillment_type?: string;
           id?: string;
@@ -268,6 +274,9 @@ export type Database = {
           delivery_area?: string | null;
           delivery_charge?: number;
           delivery_date?: string | null;
+          delivery_latitude?: number | null;
+          delivery_longitude?: number | null;
+          delivery_map_address?: string | null;
           discount?: number;
           fulfillment_type?: string;
           id?: string;
@@ -319,8 +328,8 @@ export type Database = {
       customer_addresses: {
         Row: {
           address_line: string;
-          area: string;
-          city: string;
+          area: string | null;
+          city: string | null;
           created_at: string;
           id: string;
           phone: string;
@@ -331,8 +340,8 @@ export type Database = {
         };
         Insert: {
           address_line: string;
-          area: string;
-          city: string;
+          area?: string | null;
+          city?: string | null;
           created_at?: string;
           id?: string;
           phone: string;
@@ -343,8 +352,8 @@ export type Database = {
         };
         Update: {
           address_line?: string;
-          area?: string;
-          city?: string;
+          area?: string | null;
+          city?: string | null;
           created_at?: string;
           id?: string;
           phone?: string;
@@ -447,6 +456,10 @@ export type Database = {
           email: string | null;
           full_name: string | null;
           id: string;
+          location_address: string | null;
+          location_latitude: number | null;
+          location_longitude: number | null;
+          location_updated_at: string | null;
           phone: string | null;
           referral_code: string;
         };
@@ -457,6 +470,10 @@ export type Database = {
           email?: string | null;
           full_name?: string | null;
           id: string;
+          location_address?: string | null;
+          location_latitude?: number | null;
+          location_longitude?: number | null;
+          location_updated_at?: string | null;
           phone?: string | null;
           referral_code?: string;
         };
@@ -467,6 +484,10 @@ export type Database = {
           email?: string | null;
           full_name?: string | null;
           id?: string;
+          location_address?: string | null;
+          location_latitude?: number | null;
+          location_longitude?: number | null;
+          location_updated_at?: string | null;
           phone?: string | null;
           referral_code?: string;
         };
@@ -674,6 +695,25 @@ export type Database = {
         };
         Returns: string;
       };
+      place_order_with_location: {
+        Args: {
+          _address: string;
+          _delivery_date: string | null;
+          _fulfillment_type: string;
+          _idempotency_key: string;
+          _items: Json;
+          _latitude: number | null;
+          _longitude: number | null;
+          _map_address: string | null;
+          _name: string;
+          _note: string;
+          _payment_method: string;
+          _phone: string;
+          _transaction_reference: string;
+          _voucher_code: string;
+        };
+        Returns: string;
+      };
       record_customer_referral: {
         Args: { _code: string };
         Returns: undefined;
@@ -687,6 +727,14 @@ export type Database = {
           _reference?: string | null;
         };
         Returns: string;
+      };
+      save_profile_location_if_missing: {
+        Args: {
+          _address?: string | null;
+          _latitude: number;
+          _longitude: number;
+        };
+        Returns: boolean;
       };
       validate_voucher: {
         Args: { _code: string; _subtotal: number };

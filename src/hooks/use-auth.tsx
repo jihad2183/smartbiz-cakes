@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { consumePendingProfileLocation } from "@/lib/delivery-location";
+import { toast } from "sonner";
 
 type RoleCheck = { isAdmin: boolean; error: string | null };
 const isMissingSession = (error: unknown) =>
@@ -85,7 +87,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") {
         const sequence = ++loadSequence.current;
-        setTimeout(() => void load(session?.user ?? null, sequence), 0);
+        setTimeout(() => {
+          if (event === "SIGNED_IN" && session?.user) {
+            const pendingLocation = consumePendingProfileLocation();
+            if (pendingLocation) {
+              void (async () => {
+                try {
+                  const { error } = await supabase.rpc("save_profile_location_if_missing", {
+                    _latitude: pendingLocation.latitude,
+                    _longitude: pendingLocation.longitude,
+                    _address: pendingLocation.address,
+                  });
+                  if (error) throw error;
+                } catch (error: unknown) {
+                  console.error("Could not save the selected Google signup location.", error);
+                  toast.error("Your account is ready, but its location could not be saved.");
+                }
+              })();
+            }
+          }
+          void load(session?.user ?? null, sequence);
+        }, 0);
       }
     });
     return () => sub.subscription.unsubscribe();

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
@@ -15,10 +15,17 @@ import { cakeImage } from "@/lib/cake-images";
 import { useNavigate } from "@tanstack/react-router";
 import { useSiteContent } from "@/hooks/use-site-content";
 import { useFulfillment, type Fulfillment } from "@/hooks/use-fulfillment";
+import { useInitialDeliveryLocation } from "@/hooks/use-initial-delivery-location";
 import { OrderProgress } from "@/components/OrderProgress";
 import { useLanguage } from "@/hooks/use-language";
 import { isValidPhoneNumber } from "@/lib/phone";
 import { validateVoucher, type AppliedVoucher } from "@/lib/vouchers";
+import { DeliveryLocationMap } from "@/components/DeliveryLocationMap";
+import {
+  getCurrentDeviceLocation,
+  isValidDeliveryCoordinates,
+  type DeliveryCoordinates,
+} from "@/lib/delivery-location";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
@@ -50,13 +57,10 @@ function CheckoutPage() {
     name: "",
     phone: "",
     address: "",
-    area: "",
     deliveryInstructions: "",
     date: "",
     note: "",
     fulfillment,
-    location: "Dhaka",
-    postalCode: "",
     payment: "cod",
     reference: "",
     voucherCode: "",
@@ -66,20 +70,76 @@ function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState("");
   const [draftOwnerId, setDraftOwnerId] = useState<string | null>(null);
+  const [deliveryCoordinates, setDeliveryCoordinates] = useState<DeliveryCoordinates | null>(null);
+  const [mapAddress, setMapAddress] = useState("");
+  const [locationConfirmed, setLocationConfirmed] = useState(false);
+  const [locationStatus, setLocationStatus] = useState<
+    | "detecting"
+    | "geocoding"
+    | "ready"
+    | "denied"
+    | "unavailable"
+    | "timeout"
+    | "unsupported"
+    | "error"
+  >("detecting");
+  const [reverseGeocodeUnavailable, setReverseGeocodeUnavailable] = useState(false);
+  const geolocationRequestId = useRef(0);
+  const submissionInProgress = useRef(false);
+  const reverseGeocodeController = useRef<AbortController | null>(null);
   const pendingVoucherApplied = useRef(false);
+  const initializedProfileLocation = useRef<string | null>(null);
   const deliveryCharge =
     f.fulfillment === "delivery"
       ? Math.max(0, Number.parseFloat(content["delivery_charge"] || "0") || 0)
       : 0;
-  const checkoutDetails = JSON.stringify({ ...f, appliedVoucher, deliveryCharge });
+  const checkoutDetails = JSON.stringify({
+    ...f,
+    appliedVoucher,
+    deliveryCharge,
+    deliveryCoordinates,
+    mapAddress,
+    locationConfirmed,
+  });
   const previousCheckoutDetails = useRef(checkoutDetails);
-  const { data: profile } = useQuery({
+  const requestCurrentLocation = useCallback(async () => {
+    const requestId = ++geolocationRequestId.current;
+    setLocationStatus("detecting");
+    try {
+      const currentLocation = await getCurrentDeviceLocation();
+      if (requestId !== geolocationRequestId.current) return;
+      setDeliveryCoordinates(currentLocation);
+      setMapAddress("");
+      setLocationConfirmed(false);
+      setReverseGeocodeUnavailable(false);
+      setLocationStatus("ready");
+    } catch (error) {
+      if (requestId !== geolocationRequestId.current) return;
+      const status =
+        error instanceof Error &&
+        ["denied", "unavailable", "timeout", "unsupported"].includes(error.message)
+          ? (error.message as "denied" | "unavailable" | "timeout" | "unsupported")
+          : "error";
+      setLocationStatus(status);
+    }
+  }, []);
+  const handleMapPointChange = useCallback((point: DeliveryCoordinates) => {
+    geolocationRequestId.current += 1;
+    reverseGeocodeController.current?.abort();
+    reverseGeocodeController.current = null;
+    setDeliveryCoordinates(point);
+    setMapAddress("");
+    setLocationConfirmed(false);
+    setReverseGeocodeUnavailable(false);
+    setLocationStatus("ready");
+  }, []);
+  const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ["checkout-profile", user?.id],
     enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("full_name,phone,address")
+        .select("full_name,phone,address,location_latitude,location_longitude,location_address")
         .eq("id", user!.id)
         .maybeSingle();
       if (error) throw error;
@@ -160,7 +220,6 @@ function CheckoutPage() {
             name: typeof draft["name"] === "string" ? draft["name"] : current.name,
             phone: typeof draft["phone"] === "string" ? draft["phone"] : current.phone,
             address: typeof draft["address"] === "string" ? draft["address"] : current.address,
-            area: typeof draft["area"] === "string" ? draft["area"] : current.area,
             deliveryInstructions:
               typeof draft["deliveryInstructions"] === "string"
                 ? draft["deliveryInstructions"]
@@ -171,9 +230,6 @@ function CheckoutPage() {
               draft["fulfillment"] === "pickup" || draft["fulfillment"] === "delivery"
                 ? draft["fulfillment"]
                 : current.fulfillment,
-            location: typeof draft["location"] === "string" ? draft["location"] : current.location,
-            postalCode:
-              typeof draft["postalCode"] === "string" ? draft["postalCode"] : current.postalCode,
             payment: typeof draft["payment"] === "string" ? draft["payment"] : current.payment,
             reference:
               typeof draft["reference"] === "string" ? draft["reference"] : current.reference,
@@ -202,6 +258,26 @@ function CheckoutPage() {
   useEffect(() => {
     setF((current) => ({ ...current, fulfillment }));
   }, [fulfillment]);
+  const hasSavedProfileLocation = isValidDeliveryCoordinates(
+    profile
+      ? {
+          latitude: profile.location_latitude ?? Number.NaN,
+          longitude: profile.location_longitude ?? Number.NaN,
+        }
+      : null,
+  );
+  useInitialDeliveryLocation(
+    f.fulfillment,
+    !loading && !profileLoading && !hasSavedProfileLocation,
+    requestCurrentLocation,
+  );
+  useEffect(
+    () => () => {
+      reverseGeocodeController.current?.abort();
+      reverseGeocodeController.current = null;
+    },
+    [],
+  );
   useEffect(() => {
     if (!profile) return;
     setF((current) => ({
@@ -211,6 +287,21 @@ function CheckoutPage() {
       address: current.address || profile.address || "",
     }));
   }, [profile]);
+  useEffect(() => {
+    if (loading || !user || profileLoading || initializedProfileLocation.current === user.id)
+      return;
+    const savedLocation = {
+      latitude: profile?.location_latitude ?? Number.NaN,
+      longitude: profile?.location_longitude ?? Number.NaN,
+    };
+    if (!isValidDeliveryCoordinates(savedLocation)) return;
+    initializedProfileLocation.current = user.id;
+    setDeliveryCoordinates(savedLocation);
+    setMapAddress(profile?.location_address ?? "");
+    setLocationConfirmed(true);
+    setReverseGeocodeUnavailable(false);
+    setLocationStatus("ready");
+  }, [hasSavedProfileLocation, loading, profile, profileLoading, user]);
   useEffect(() => {
     const storedAddressId = localStorage.getItem("smartcake-selected-address");
     if (storedAddressId) setSelectedAddressId(storedAddressId);
@@ -227,9 +318,6 @@ function CheckoutPage() {
       name: current.name || address.recipient_name,
       phone: current.phone || address.phone,
       address: address.address_line,
-      area: address.area,
-      location: address.city,
-      postalCode: address.postal_code ?? "",
     }));
   }, [savedAddresses, selectedAddressId]);
   useEffect(() => {
@@ -294,6 +382,7 @@ function CheckoutPage() {
 
   const order = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submissionInProgress.current) return;
     if (!user) {
       toast.error("Sign in to place your order.");
       return;
@@ -314,21 +403,26 @@ function CheckoutPage() {
       toast.error("Enter your name before placing the order.");
       return;
     }
+    if (f.fulfillment === "delivery" && !f.address.trim()) {
+      toast.error("Enter your house and road for home delivery.");
+      return;
+    }
     if (
       f.fulfillment === "delivery" &&
-      (!f.address.trim() || !f.area.trim() || !f.location.trim())
+      (!locationConfirmed || !isValidDeliveryCoordinates(deliveryCoordinates))
     ) {
-      toast.error("Enter your house, road, area, and city for home delivery.");
+      toast.error("Select and confirm your delivery location on the map.");
       return;
     }
     if (!reviewed) {
       toast.error("Review and confirm your order details before placing the order.");
       return;
     }
+    submissionInProgress.current = true;
     setSubmitting(true);
     try {
       idempotencyKey.current ??= generateUuid();
-      const { data: orderId, error } = await supabase.rpc("place_order_once", {
+      const { data: orderId, error } = await supabase.rpc("place_order_with_location", {
         _idempotency_key: idempotencyKey.current,
         _items: items.map((i) => ({ cake_id: i.cake_id, quantity: i.quantity, pounds: i.pounds })),
         _name: f.name,
@@ -344,13 +438,12 @@ function CheckoutPage() {
           .filter(Boolean)
           .join("\n"),
         _fulfillment_type: f.fulfillment,
-        _delivery_area:
-          f.fulfillment === "delivery"
-            ? `${f.location} · ${f.area}${f.postalCode.trim() ? ` · ${f.postalCode.trim()}` : ""}`
-            : "",
         _payment_method: f.payment,
         _transaction_reference: f.reference,
         _voucher_code: appliedVoucher?.code ?? "",
+        _latitude: f.fulfillment === "delivery" ? (deliveryCoordinates?.latitude ?? null) : null,
+        _longitude: f.fulfillment === "delivery" ? (deliveryCoordinates?.longitude ?? null) : null,
+        _map_address: f.fulfillment === "delivery" ? mapAddress || null : null,
       });
       if (error) throw new Error(error.message);
       if (typeof orderId !== "string") {
@@ -370,21 +463,14 @@ function CheckoutPage() {
       toast.error(error instanceof Error ? error.message : "Your order could not be placed.");
     } finally {
       setSubmitting(false);
+      submissionInProgress.current = false;
     }
   };
 
   const saveAddress = async () => {
     if (!user) return;
-    if (
-      !f.name.trim() ||
-      !f.phone.trim() ||
-      !f.address.trim() ||
-      !f.area.trim() ||
-      !f.location.trim()
-    ) {
-      toast.error(
-        "Enter your name, valid phone number, house and road, area, and city before saving.",
-      );
+    if (!f.name.trim() || !f.phone.trim() || !f.address.trim()) {
+      toast.error("Enter your name, phone number, and house and road before saving.");
       return;
     }
     if (!isValidPhoneNumber(f.phone)) {
@@ -396,9 +482,6 @@ function CheckoutPage() {
       recipient_name: f.name.trim(),
       phone: f.phone.trim(),
       address_line: f.address.trim(),
-      area: f.area.trim(),
-      city: f.location.trim(),
-      postal_code: f.postalCode.trim() || null,
     };
     const { data, error } = selectedAddressId
       ? await supabase
@@ -433,6 +516,56 @@ function CheckoutPage() {
     setSelectedAddressId(data.id);
     localStorage.setItem("smartcake-selected-address", data.id);
     toast.success("Delivery address saved to your account.");
+  };
+
+  const confirmDeliveryLocation = async () => {
+    if (!isValidDeliveryCoordinates(deliveryCoordinates)) {
+      toast.error("Choose a valid point on the delivery map first.");
+      return;
+    }
+
+    const selectedPoint = deliveryCoordinates;
+    reverseGeocodeController.current?.abort();
+    const controller = new AbortController();
+    reverseGeocodeController.current = controller;
+    setLocationConfirmed(true);
+    setReverseGeocodeUnavailable(false);
+    setLocationStatus("geocoding");
+
+    const timeout = window.setTimeout(() => controller.abort(), 7000);
+    try {
+      const query = new URLSearchParams({
+        format: "jsonv2",
+        lat: String(selectedPoint.latitude),
+        lon: String(selectedPoint.longitude),
+      });
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?${query.toString()}`,
+        { headers: { "Accept-Language": navigator.language || "en" }, signal: controller.signal },
+      );
+      if (!response.ok) throw new Error(`Reverse geocoding failed (${response.status}).`);
+      const result: unknown = await response.json();
+      const displayName =
+        result &&
+        typeof result === "object" &&
+        "display_name" in result &&
+        typeof result.display_name === "string"
+          ? result.display_name
+          : "";
+      if (displayName) setMapAddress(displayName);
+      else setReverseGeocodeUnavailable(true);
+    } catch (error) {
+      if (!(error instanceof Error && error.name === "AbortError")) {
+        console.warn("Could not retrieve a readable address for the selected map location.", error);
+      }
+      if (reverseGeocodeController.current === controller) setReverseGeocodeUnavailable(true);
+    } finally {
+      window.clearTimeout(timeout);
+      if (reverseGeocodeController.current === controller) {
+        reverseGeocodeController.current = null;
+        setLocationStatus("ready");
+      }
+    }
   };
 
   return (
@@ -580,37 +713,18 @@ function CheckoutPage() {
                     </p>
                   )}
                   {f.fulfillment === "delivery" && (
-                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <div className="mt-4 grid gap-4">
                       <label className="grid gap-1.5 text-sm font-medium">
-                        {t("cityDistrict")}
-                        <Input
-                          required
-                          autoComplete="address-level2"
-                          value={f.location}
-                          onChange={(e) => setF({ ...f, location: e.target.value })}
-                        />
-                      </label>
-                      <label className="grid gap-1.5 text-sm font-medium">
-                        {t("areaNeighbourhood")}
-                        <Input
-                          required
-                          autoComplete="address-level3"
-                          value={f.area}
-                          placeholder="e.g. Dhanmondi"
-                          onChange={(e) => setF({ ...f, area: e.target.value })}
-                        />
-                      </label>
-                      <label className="grid gap-1.5 text-sm font-medium sm:col-span-2">
                         {t("houseRoad")}
                         <Input
                           required
                           autoComplete="street-address"
                           value={f.address}
-                          placeholder="House, road, and any delivery directions"
+                          placeholder="Enter your complete house and road address"
                           onChange={(e) => setF({ ...f, address: e.target.value })}
                         />
                       </label>
-                      <label className="grid gap-1.5 text-sm font-medium sm:col-span-2">
+                      <label className="grid gap-1.5 text-sm font-medium">
                         Delivery instructions (optional)
                         <Input
                           value={f.deliveryInstructions}
@@ -618,16 +732,105 @@ function CheckoutPage() {
                           onChange={(e) => setF({ ...f, deliveryInstructions: e.target.value })}
                         />
                       </label>
-                      <label className="grid gap-1.5 text-sm font-medium">
-                        {t("postalCode")}
-                        <Input
-                          autoComplete="postal-code"
-                          value={f.postalCode}
-                          onChange={(e) => setF({ ...f, postalCode: e.target.value })}
+                      <div className="space-y-3 rounded-xl border p-3 sm:p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div>
+                            <h3 className="font-semibold">Pin your delivery location</h3>
+                            <p className="text-sm text-muted-foreground">
+                              Drag the pin or tap the map to set the exact drop-off point.
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            disabled={locationStatus === "detecting"}
+                            onClick={() => void requestCurrentLocation()}
+                          >
+                            {locationStatus === "detecting"
+                              ? "Detecting location…"
+                              : "Use My Current Location"}
+                          </Button>
+                        </div>
+                        <DeliveryLocationMap
+                          point={deliveryCoordinates}
+                          onPointChange={handleMapPointChange}
                         />
-                      </label>
+                        {locationStatus === "detecting" && (
+                          <p role="status" className="text-sm text-muted-foreground">
+                            Detecting your current location…
+                          </p>
+                        )}
+                        {locationStatus === "denied" && (
+                          <p role="status" className="text-sm text-amber-800">
+                            Location permission was denied. You can still select your location by
+                            tapping the map or dragging the pin.
+                          </p>
+                        )}
+                        {locationStatus === "unavailable" && (
+                          <p role="status" className="text-sm text-amber-800">
+                            Your device could not determine a location. Select it manually on the
+                            map.
+                          </p>
+                        )}
+                        {locationStatus === "timeout" && (
+                          <p role="status" className="text-sm text-amber-800">
+                            Location detection timed out. Select it manually on the map or try
+                            again.
+                          </p>
+                        )}
+                        {locationStatus === "unsupported" && (
+                          <p role="status" className="text-sm text-amber-800">
+                            Device location is unavailable in this browser. Select it manually on
+                            the map.
+                          </p>
+                        )}
+                        {locationStatus === "error" && (
+                          <p role="status" className="text-sm text-amber-800">
+                            Could not detect your location. You can select it manually on the map.
+                          </p>
+                        )}
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <p aria-live="polite" className="min-w-0 text-sm text-muted-foreground">
+                            {deliveryCoordinates
+                              ? `Selected: ${deliveryCoordinates.latitude.toFixed(6)}, ${deliveryCoordinates.longitude.toFixed(6)}`
+                              : "Choose a point on the map."}
+                            {locationConfirmed ? " · Location confirmed" : ""}
+                          </p>
+                          <Button
+                            type="button"
+                            disabled={
+                              !isValidDeliveryCoordinates(deliveryCoordinates) ||
+                              locationStatus === "geocoding" ||
+                              (locationConfirmed && !reverseGeocodeUnavailable)
+                            }
+                            onClick={() => void confirmDeliveryLocation()}
+                          >
+                            {locationStatus === "geocoding"
+                              ? "Confirming…"
+                              : locationConfirmed && !reverseGeocodeUnavailable
+                                ? "Location Confirmed"
+                                : "Confirm This Location"}
+                          </Button>
+                        </div>
+                        {mapAddress && (
+                          <p className="rounded-lg bg-secondary/50 p-3 text-sm">
+                            <span className="font-medium">Map address: </span>
+                            {mapAddress}
+                          </p>
+                        )}
+                        {reverseGeocodeUnavailable && (
+                          <p className="text-sm text-muted-foreground">
+                            A readable map address is unavailable. Your confirmed coordinates will
+                            still be saved with the order.
+                          </p>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          Map data © OpenStreetMap contributors. The selected point is sent to
+                          OpenStreetMap Nominatim to look up a readable address.
+                        </p>
+                      </div>
                       {savedAddresses.length > 0 && (
-                        <label className="grid gap-1.5 text-sm font-medium sm:col-span-2">
+                        <label className="grid gap-1.5 text-sm font-medium">
                           {t("savedAddress")}
                           <select
                             className="h-10 rounded-md border border-input bg-background px-3"
@@ -646,22 +849,21 @@ function CheckoutPage() {
                                 localStorage.removeItem("smartcake-selected-address");
                               }
                               if (address) {
+                                geolocationRequestId.current += 1;
                                 setF((current) => ({
                                   ...current,
                                   name: address.recipient_name,
                                   phone: address.phone,
                                   address: address.address_line,
-                                  area: address.area,
-                                  location: address.city,
-                                  postalCode: address.postal_code ?? "",
                                 }));
+                                setDeliveryCoordinates(null);
+                                setMapAddress("");
+                                setLocationConfirmed(false);
+                                setLocationStatus("ready");
                               } else {
                                 setF((current) => ({
                                   ...current,
                                   address: "",
-                                  area: "",
-                                  location: "",
-                                  postalCode: "",
                                 }));
                               }
                             }}
@@ -669,15 +871,14 @@ function CheckoutPage() {
                             <option value="">{t("addNewAddress")}</option>
                             {savedAddresses.map((address) => (
                               <option key={address.id} value={address.id}>
-                                {address.recipient_name} · {address.address_line}, {address.area},{" "}
-                                {address.city}
+                                {address.recipient_name} · {address.address_line}
                               </option>
                             ))}
                           </select>
                         </label>
                       )}
                       {addressesError && (
-                        <p role="alert" className="text-sm text-destructive sm:col-span-2">
+                        <p role="alert" className="text-sm text-destructive">
                           Saved addresses could not be loaded. You can still enter an address for
                           this order.
                         </p>

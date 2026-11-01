@@ -34,6 +34,7 @@ import { generateUuid } from "@/lib/uuid";
 import { isConfirmedOrder } from "@/lib/financial-report";
 import { FinancialDashboard } from "@/components/admin/FinancialDashboard";
 import { OrderPaymentEntry } from "@/components/admin/OrderPaymentEntry";
+import { DeliveryLocationMap } from "@/components/DeliveryLocationMap";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -2520,12 +2521,8 @@ function AdminPage() {
                     {selectedOrder.fulfillment_type === "pickup" ? "Self pick-up" : "Home delivery"}
                   </dd>
                 </div>
-                <div>
-                  <dt className="text-sm text-muted-foreground">Delivery area</dt>
-                  <dd>{selectedOrder.delivery_area || "Not applicable"}</dd>
-                </div>
                 <div className="sm:col-span-2">
-                  <dt className="text-sm text-muted-foreground">Delivery address / collection</dt>
+                  <dt className="text-sm text-muted-foreground">House and road / collection</dt>
                   <dd className="break-words">
                     {selectedOrder.address ||
                       (selectedOrder.fulfillment_type === "pickup"
@@ -2533,6 +2530,42 @@ function AdminPage() {
                         : selectedOrderProfile?.address || "Not provided")}
                   </dd>
                 </div>
+                {selectedOrder.fulfillment_type === "delivery" && (
+                  <>
+                    <div className="sm:col-span-2">
+                      <dt className="text-sm text-muted-foreground">Readable map address</dt>
+                      <dd className="break-words">
+                        {selectedOrder.delivery_map_address || "No readable address was saved"}
+                      </dd>
+                    </div>
+                    {selectedOrder.delivery_latitude !== null &&
+                      selectedOrder.delivery_longitude !== null && (
+                        <div className="sm:col-span-2 space-y-3">
+                          <div>
+                            <dt className="text-sm text-muted-foreground">Selected coordinates</dt>
+                            <dd className="font-mono text-sm">
+                              {selectedOrder.delivery_latitude}, {selectedOrder.delivery_longitude}
+                            </dd>
+                          </div>
+                          <DeliveryLocationMap
+                            point={{
+                              latitude: selectedOrder.delivery_latitude,
+                              longitude: selectedOrder.delivery_longitude,
+                            }}
+                            interactive={false}
+                          />
+                          <a
+                            className="inline-flex text-sm font-medium text-primary underline"
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${selectedOrder.delivery_latitude},${selectedOrder.delivery_longitude}`)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Open in Google Maps
+                          </a>
+                        </div>
+                      )}
+                  </>
+                )}
                 <div>
                   <dt className="text-sm text-muted-foreground">Payment method</dt>
                   <dd className="capitalize">

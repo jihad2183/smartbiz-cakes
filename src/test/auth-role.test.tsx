@@ -1,10 +1,12 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
+import { savePendingProfileLocation } from "@/lib/delivery-location";
 
 const mocks = vi.hoisted(() => ({
   getUser: vi.fn(),
   onAuthStateChange: vi.fn(),
+  authCallback: vi.fn(),
   rpc: vi.fn(),
 }));
 
@@ -22,10 +24,18 @@ const user = { id: "customer-uuid" };
 
 describe("administrator role verification", () => {
   beforeEach(() => {
+    sessionStorage.clear();
     mocks.getUser.mockReset().mockResolvedValue({ data: { user }, error: null });
     mocks.onAuthStateChange.mockReset().mockReturnValue({
       data: { subscription: { unsubscribe: vi.fn() } },
     });
+    mocks.authCallback.mockReset();
+    mocks.onAuthStateChange.mockImplementation(
+      (callback: (event: string, session: { user: typeof user } | null) => void) => {
+        mocks.authCallback.mockImplementation(callback);
+        return { data: { subscription: { unsubscribe: vi.fn() } } };
+      },
+    );
     mocks.rpc.mockReset().mockResolvedValue({ data: false, error: null });
   });
 
@@ -66,5 +76,23 @@ describe("administrator role verification", () => {
       refreshed = await result.current.refresh();
     });
     expect(refreshed).toEqual({ isAdmin: false, error: roleError.message });
+  });
+
+  it("saves a pending OAuth location through the null-only profile RPC after sign-in", async () => {
+    const point = { latitude: 23.7, longitude: 90.4 };
+    savePendingProfileLocation(point, "Dhaka");
+    renderHook(() => useAuth(), { wrapper: AuthProvider });
+    await waitFor(() => expect(mocks.rpc).toHaveBeenCalledWith("has_role", expect.any(Object)));
+
+    act(() => mocks.authCallback("SIGNED_IN", { user }));
+
+    await waitFor(() =>
+      expect(mocks.rpc).toHaveBeenCalledWith("save_profile_location_if_missing", {
+        _latitude: point.latitude,
+        _longitude: point.longitude,
+        _address: "Dhaka",
+      }),
+    );
+    expect(sessionStorage.getItem("smartcake-pending-profile-location")).toBeNull();
   });
 });
