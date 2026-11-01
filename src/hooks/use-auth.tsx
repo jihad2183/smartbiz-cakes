@@ -1,38 +1,120 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
-type AuthCtx = { user: User | null; isAdmin: boolean; loading: boolean; refresh: () => Promise<void> };
-const Ctx = createContext<AuthCtx>({ user: null, isAdmin: false, loading: true, refresh: async () => {} });
+type RoleCheck = { isAdmin: boolean; error: string | null };
+const isMissingSession = (error: unknown) =>
+  error instanceof Error && error.name === "AuthSessionMissingError";
+
+type AuthCtx = {
+  user: User | null;
+  isAdmin: boolean;
+  loading: boolean;
+  roleError: string | null;
+  refresh: () => Promise<RoleCheck>;
+};
+const Ctx = createContext<AuthCtx>({
+  user: null,
+  isAdmin: false,
+  loading: true,
+  roleError: null,
+  refresh: async () => ({ isAdmin: false, error: null }),
+});
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [roleError, setRoleError] = useState<string | null>(null);
+  const loadSequence = useRef(0);
 
-  const load = async (u: User | null) => {
+  const load = async (u: User | null, sequence = ++loadSequence.current): Promise<RoleCheck> => {
     setUser(u);
-    if (u) {
-      const { data } = await supabase.rpc("has_role", { _user_id: u.id, _role: "admin" });
-      setIsAdmin(!!data);
-    } else setIsAdmin(false);
-    setLoading(false);
+    if (!u) {
+      setIsAdmin(false);
+      setRoleError(null);
+      setLoading(false);
+      return { isAdmin: false, error: null };
+    }
+
+    try {
+      const { data, error } = await supabase.rpc("has_role", {
+        _user_id: u.id,
+        _role: "admin",
+      });
+      if (error) throw error;
+
+      const verifiedAdmin = data === true;
+      if (sequence === loadSequence.current) {
+        setIsAdmin(verifiedAdmin);
+        setRoleError(null);
+      }
+      return { isAdmin: verifiedAdmin, error: null };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Administrator access could not be verified.";
+      console.error("Could not verify administrator role.", error);
+      if (sequence === loadSequence.current) {
+        setIsAdmin(false);
+        setRoleError(message);
+      }
+      return { isAdmin: false, error: message };
+    } finally {
+      if (sequence === loadSequence.current) setLoading(false);
+    }
   };
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => load(data.user));
+    const initialSequence = loadSequence.current;
+    void supabase.auth
+      .getUser()
+      .then(({ data, error }) => {
+        if (loadSequence.current !== initialSequence) return;
+        if (isMissingSession(error)) return load(null);
+        if (error) throw error;
+        return load(data.user);
+      })
+      .catch((error: unknown) => {
+        const message =
+          error instanceof Error ? error.message : "Your sign-in session could not be verified.";
+        console.error("Could not restore the sign-in session.", error);
+        setIsAdmin(false);
+        setRoleError(message);
+        setLoading(false);
+      });
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") {
-        setTimeout(() => load(session?.user ?? null), 0);
+        const sequence = ++loadSequence.current;
+        setTimeout(() => void load(session?.user ?? null, sequence), 0);
       }
     });
     return () => sub.subscription.unsubscribe();
   }, []);
 
+  const refresh = async (): Promise<RoleCheck> => {
+    try {
+      const { data, error } = await supabase.auth.getUser();
+      if (isMissingSession(error)) {
+        return {
+          isAdmin: false,
+          error: "No active sign-in session was found. Please sign in again.",
+        };
+      }
+      if (error) throw error;
+      return load(data.user);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Your sign-in session could not be verified.";
+      console.error("Could not refresh the sign-in session.", error);
+      setIsAdmin(false);
+      setRoleError(message);
+      setLoading(false);
+      return { isAdmin: false, error: message };
+    }
+  };
+
   return (
-    <Ctx.Provider value={{ user, isAdmin, loading, refresh: async () => load((await supabase.auth.getUser()).data.user) }}>
-      {children}
-    </Ctx.Provider>
+    <Ctx.Provider value={{ user, isAdmin, loading, roleError, refresh }}>{children}</Ctx.Provider>
   );
 }
 

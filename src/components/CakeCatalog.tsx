@@ -5,6 +5,7 @@ import { CakeCard, type Cake } from "@/components/CakeCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getCakePageCount, getCakePageRange } from "@/lib/cake-pagination";
+import { useLanguage } from "@/hooks/use-language";
 
 const sortOptions = {
   newest: { label: "Newest", column: "created_at", ascending: false },
@@ -37,6 +38,7 @@ export function CakeCatalog({
   title: string;
   initialQuery?: string;
 }) {
+  const { t } = useLanguage();
   const [query, setQuery] = useState(initialQuery);
   const [category, setCategory] = useState("all");
   const [sort, setSort] = useState<SortOption>("oldest");
@@ -78,6 +80,13 @@ export function CakeCatalog({
     },
   });
   const pageCount = getCakePageCount(data?.count ?? 0);
+  const sortLabels: Record<SortOption, string> = {
+    newest: t("newest"),
+    oldest: t("oldest"),
+    price_low: t("priceLowHigh"),
+    price_high: t("priceHighLow"),
+    name: t("nameAZ"),
+  };
 
   useEffect(() => {
     setQuery(initialQuery);
@@ -95,13 +104,13 @@ export function CakeCatalog({
         <h2 className="text-3xl">{title}</h2>
         <div className="grid gap-3 sm:grid-cols-3">
           <Input
-            aria-label="Search cakes"
-            placeholder="Search cakes…"
+            aria-label={t("searchCakes")}
+            placeholder={t("searchCakes")}
             value={query}
             onChange={(event) => updateQuery(event.target.value)}
           />
           <select
-            aria-label="Filter cakes by category"
+            aria-label={t("allCategories")}
             className="h-10 min-w-0 rounded-md border border-input bg-card px-3 text-sm"
             value={category}
             onChange={(event) => {
@@ -109,7 +118,7 @@ export function CakeCatalog({
               setPage(1);
             }}
           >
-            <option value="all">All categories</option>
+            <option value="all">{t("allCategories")}</option>
             {categories.map((value) => (
               <option key={value} value={value}>
                 {value}
@@ -117,7 +126,7 @@ export function CakeCatalog({
             ))}
           </select>
           <select
-            aria-label="Sort cakes"
+            aria-label={t("sortCakes")}
             className="h-10 min-w-0 rounded-md border border-input bg-card px-3 text-sm"
             value={sort}
             onChange={(event) => {
@@ -127,7 +136,7 @@ export function CakeCatalog({
           >
             {Object.entries(sortOptions).map(([value, option]) => (
               <option key={value} value={value}>
-                {option.label}
+                {sortLabels[value as SortOption]}
               </option>
             ))}
           </select>
@@ -135,13 +144,13 @@ export function CakeCatalog({
       </div>
 
       {isLoading ? (
-        <p className="mt-6 text-muted-foreground">Loading cakes…</p>
+        <p className="mt-6 text-muted-foreground">{t("loadingCakes")}</p>
       ) : error ? (
         <p role="alert" className="mt-6 text-destructive">
-          Cakes could not be loaded. Please try again.
+          {t("cakesLoadError")}
         </p>
       ) : !data?.cakes.length ? (
-        <p className="mt-6 text-muted-foreground">No cakes match the selected filters.</p>
+        <p className="mt-6 text-muted-foreground">{t("noCakesMatch")}</p>
       ) : (
         <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {data.cakes.map((cake) => (
@@ -152,7 +161,7 @@ export function CakeCatalog({
 
       {pageCount > 1 && (
         <nav
-          aria-label="Cake pages"
+          aria-label={t("page")}
           className="mt-8 flex flex-wrap items-center justify-center gap-2"
         >
           <Button
@@ -161,7 +170,7 @@ export function CakeCatalog({
             disabled={page === 1}
             onClick={() => setPage((current) => current - 1)}
           >
-            Previous
+            {t("previous")}
           </Button>
           {pageNumbers(page, pageCount).map((number, index, pages) => (
             <span key={number} className="flex items-center gap-2">
@@ -174,7 +183,7 @@ export function CakeCatalog({
                 variant={page === number ? "default" : "outline"}
                 size="sm"
                 aria-current={page === number ? "page" : undefined}
-                aria-label={`Page ${number}`}
+                aria-label={`${t("page")} ${number}`}
                 onClick={() => setPage(number)}
               >
                 {number}
@@ -187,7 +196,7 @@ export function CakeCatalog({
             disabled={page === pageCount}
             onClick={() => setPage((current) => current + 1)}
           >
-            Next
+            {t("next")}
           </Button>
         </nav>
       )}

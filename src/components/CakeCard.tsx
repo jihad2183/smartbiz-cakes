@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { cakeImage } from "@/lib/cake-images";
 import { useState } from "react";
 import { PoundSelect } from "@/components/PoundSelect";
+import { useLanguage } from "@/hooks/use-language";
 
 export type Cake = {
   id: string;
@@ -20,6 +21,7 @@ export type Cake = {
 
 export function CakeCard({ cake }: { cake: Cake }) {
   const { add } = useCart();
+  const { t } = useLanguage();
   const [lb, setLb] = useState(1);
   return (
     <article className="group flex flex-col overflow-hidden rounded-2xl bg-card shadow-soft transition hover:-translate-y-1">
@@ -45,9 +47,13 @@ export function CakeCard({ cake }: { cake: Cake }) {
           <div className="mt-2 flex items-center justify-between">
             <span className="font-medium text-primary">
               {formatPrice(cake.price * lb)}{" "}
-              <span className="text-xs text-muted-foreground">for {lb} lb</span>
+              <span className="text-xs text-muted-foreground">
+                {t("forPounds")} {lb} lb
+              </span>
             </span>
-            {!cake.available && <span className="text-xs text-destructive">Unavailable</span>}
+            {!cake.available && (
+              <span className="text-xs text-destructive">{t("unavailable")}</span>
+            )}
           </div>
         </div>
       </Link>
@@ -56,7 +62,7 @@ export function CakeCard({ cake }: { cake: Cake }) {
         <Button
           className="flex-1"
           disabled={!cake.available}
-          aria-label={`Add ${cake.name} to cart`}
+          aria-label={`${t("addToCart")} ${cake.name}`}
           onClick={() => {
             const added = add({
               cake_id: cake.id,
@@ -65,12 +71,12 @@ export function CakeCard({ cake }: { cake: Cake }) {
               image_url: cake.image_url,
               pounds: lb,
             });
-            if (added) toast.success(`${lb} lb ${cake.name} added to cart`);
+            if (added) toast.success(`${lb} lb ${cake.name} ${t("cakeAdded")}`);
             else toast.error("A cart item cannot exceed 50 cakes.");
           }}
         >
           <ShoppingBag className="h-4 w-4" />
-          {cake.available ? "Add to Cart" : "Unavailable"}
+          {cake.available ? t("addToCart") : t("unavailable")}
         </Button>
       </div>
     </article>

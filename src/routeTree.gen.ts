@@ -10,18 +10,28 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AccountRouteImport } from './routes/account'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AdminLoginRouteImport } from './routes/admin-login'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as CakesRouteImport } from './routes/cakes'
 import { Route as CartRouteImport } from './routes/cart'
+import { Route as CheckoutRouteImport } from './routes/checkout'
+import { Route as EditProfileRouteImport } from './routes/edit-profile'
+import { Route as HelpRouteImport } from './routes/help'
 import { Route as OrdersRouteImport } from './routes/orders'
+import { Route as VouchersRouteImport } from './routes/vouchers'
 import { Route as CakesIdRouteImport } from './routes/cakes.$id'
 import { Route as OrdersIdRouteImport } from './routes/orders.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AccountRoute = AccountRouteImport.update({
+  id: '/account',
+  path: '/account',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -49,9 +59,29 @@ const CartRoute = CartRouteImport.update({
   path: '/cart',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CheckoutRoute = CheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EditProfileRoute = EditProfileRouteImport.update({
+  id: '/edit-profile',
+  path: '/edit-profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OrdersRoute = OrdersRouteImport.update({
   id: '/orders',
   path: '/orders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VouchersRoute = VouchersRouteImport.update({
+  id: '/vouchers',
+  path: '/vouchers',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CakesIdRoute = CakesIdRouteImport.update({
@@ -67,35 +97,50 @@ const OrdersIdRoute = OrdersIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/admin': typeof AdminRoute
   '/admin-login': typeof AdminLoginRoute
   '/auth': typeof AuthRoute
   '/cakes': typeof CakesRouteWithChildren
   '/cart': typeof CartRoute
+  '/checkout': typeof CheckoutRoute
+  '/edit-profile': typeof EditProfileRoute
+  '/help': typeof HelpRoute
   '/orders': typeof OrdersRouteWithChildren
+  '/vouchers': typeof VouchersRoute
   '/cakes/$id': typeof CakesIdRoute
   '/orders/$id': typeof OrdersIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/admin': typeof AdminRoute
   '/admin-login': typeof AdminLoginRoute
   '/auth': typeof AuthRoute
   '/cakes': typeof CakesRouteWithChildren
   '/cart': typeof CartRoute
+  '/checkout': typeof CheckoutRoute
+  '/edit-profile': typeof EditProfileRoute
+  '/help': typeof HelpRoute
   '/orders': typeof OrdersRouteWithChildren
+  '/vouchers': typeof VouchersRoute
   '/cakes/$id': typeof CakesIdRoute
   '/orders/$id': typeof OrdersIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/admin': typeof AdminRoute
   '/admin-login': typeof AdminLoginRoute
   '/auth': typeof AuthRoute
   '/cakes': typeof CakesRouteWithChildren
   '/cart': typeof CartRoute
+  '/checkout': typeof CheckoutRoute
+  '/edit-profile': typeof EditProfileRoute
+  '/help': typeof HelpRoute
   '/orders': typeof OrdersRouteWithChildren
+  '/vouchers': typeof VouchersRoute
   '/cakes/$id': typeof CakesIdRoute
   '/orders/$id': typeof OrdersIdRoute
 }
@@ -103,46 +148,66 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/account'
     | '/admin'
     | '/admin-login'
     | '/auth'
     | '/cakes'
     | '/cart'
+    | '/checkout'
+    | '/edit-profile'
+    | '/help'
     | '/orders'
+    | '/vouchers'
     | '/cakes/$id'
     | '/orders/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/account'
     | '/admin'
     | '/admin-login'
     | '/auth'
     | '/cakes'
     | '/cart'
+    | '/checkout'
+    | '/edit-profile'
+    | '/help'
     | '/orders'
+    | '/vouchers'
     | '/cakes/$id'
     | '/orders/$id'
   id:
     | '__root__'
     | '/'
+    | '/account'
     | '/admin'
     | '/admin-login'
     | '/auth'
     | '/cakes'
     | '/cart'
+    | '/checkout'
+    | '/edit-profile'
+    | '/help'
     | '/orders'
+    | '/vouchers'
     | '/cakes/$id'
     | '/orders/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccountRoute: typeof AccountRoute
   AdminRoute: typeof AdminRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AuthRoute: typeof AuthRoute
   CakesRoute: typeof CakesRouteWithChildren
   CartRoute: typeof CartRoute
+  CheckoutRoute: typeof CheckoutRoute
+  EditProfileRoute: typeof EditProfileRoute
+  HelpRoute: typeof HelpRoute
   OrdersRoute: typeof OrdersRouteWithChildren
+  VouchersRoute: typeof VouchersRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -152,6 +217,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/account': {
+      id: '/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AccountRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -189,11 +261,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CartRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/checkout': {
+      id: '/checkout'
+      path: '/checkout'
+      fullPath: '/checkout'
+      preLoaderRoute: typeof CheckoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/edit-profile': {
+      id: '/edit-profile'
+      path: '/edit-profile'
+      fullPath: '/edit-profile'
+      preLoaderRoute: typeof EditProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/orders': {
       id: '/orders'
       path: '/orders'
       fullPath: '/orders'
       preLoaderRoute: typeof OrdersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/vouchers': {
+      id: '/vouchers'
+      path: '/vouchers'
+      fullPath: '/vouchers'
+      preLoaderRoute: typeof VouchersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cakes/$id': {
@@ -236,12 +336,17 @@ const OrdersRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccountRoute: AccountRoute,
   AdminRoute: AdminRoute,
   AdminLoginRoute: AdminLoginRoute,
   AuthRoute: AuthRoute,
   CakesRoute: CakesRouteWithChildren,
   CartRoute: CartRoute,
+  CheckoutRoute: CheckoutRoute,
+  EditProfileRoute: EditProfileRoute,
+  HelpRoute: HelpRoute,
   OrdersRoute: OrdersRouteWithChildren,
+  VouchersRoute: VouchersRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

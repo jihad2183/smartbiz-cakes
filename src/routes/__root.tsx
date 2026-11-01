@@ -9,14 +9,17 @@ import {
   type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { toast } from "sonner";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { AuthProvider } from "@/hooks/use-auth";
+import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { CartProvider } from "@/hooks/use-cart";
+import { LanguageProvider } from "@/hooks/use-language";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Toaster } from "@/components/ui/sonner";
-import { useSiteContent } from '@/hooks/use-site-content';
+import { useSiteContent } from "@/hooks/use-site-content";
+import { supabase } from "@/integrations/supabase/client";
 
 function NotFoundComponent() {
   return (
@@ -124,18 +127,60 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <CartProvider>
-          <SiteHeader />
-          <Outlet />
-          <ShopFooter />
-          <Toaster />
-        </CartProvider>
+        <ReferralAttribution />
+        <LanguageProvider>
+          <CartProvider>
+            <SiteHeader />
+            <Outlet />
+            <ShopFooter />
+            <Toaster />
+          </CartProvider>
+        </LanguageProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
 }
 
+function ReferralAttribution() {
+  const { user, loading } = useAuth();
+  const userId = user?.id;
+
+  useEffect(() => {
+    if (loading || !userId) return;
+    const url = new URL(window.location.href);
+    const referralCode = url.searchParams.get("ref");
+    if (!referralCode) return;
+
+    void supabase.rpc("record_customer_referral", { _code: referralCode }).then(({ error }) => {
+      if (error) {
+        console.error("Could not record the customer invitation.", error);
+        toast.error("This invitation could not be recorded.");
+        return;
+      }
+      url.searchParams.delete("ref");
+      window.history.replaceState(window.history.state, "", url);
+    });
+  }, [loading, userId]);
+
+  return null;
+}
+
 function ShopFooter() {
   const { data: content = {} } = useSiteContent();
-  return <footer className="mt-8 border-t"><div className="mx-auto flex max-w-6xl flex-wrap items-start justify-between gap-6 px-4 py-8"><div><p className="font-display text-xl">{content['shop_name'] || 'Smart Cake Shop'}</p>{content['footer_text'] && <p className="mt-2 text-sm text-muted-foreground">{content['footer_text']}</p>}<p className="mt-2 text-sm">{content['contact_phone']} {content['contact_email']}</p>{content['shop_address'] && <p className="text-sm">{content['shop_address']}</p>}</div></div></footer>;
+  return (
+    <footer className="mt-8 border-t">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-start justify-between gap-6 px-4 py-8">
+        <div>
+          <p className="font-display text-xl">{content["shop_name"] || "Smart Cake Shop"}</p>
+          {content["footer_text"] && (
+            <p className="mt-2 text-sm text-muted-foreground">{content["footer_text"]}</p>
+          )}
+          <p className="mt-2 text-sm">
+            {content["contact_phone"]} {content["contact_email"]}
+          </p>
+          {content["shop_address"] && <p className="text-sm">{content["shop_address"]}</p>}
+        </div>
+      </div>
+    </footer>
+  );
 }

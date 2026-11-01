@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { formatPrice } from "@/hooks/use-cart";
 import { cakeImage } from "@/lib/cake-images";
 import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/hooks/use-language";
 
 export const Route = createFileRoute("/orders")({
   head: () => ({
@@ -22,6 +23,18 @@ export const Route = createFileRoute("/orders")({
 
 function OrdersPage() {
   const { user, loading } = useAuth();
+  const { t } = useLanguage();
+  const statusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      pending: t("pending"),
+      confirmed: t("confirmed"),
+      preparing: t("preparing"),
+      out_for_delivery: t("outForDelivery"),
+      delivered: t("delivered"),
+      cancelled: t("cancelled"),
+    };
+    return labels[status] ?? status.replaceAll("_", " ");
+  };
   const isOrderDetail = useMatchRoute()({ to: "/orders/$id" });
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["my-orders", user?.id],
@@ -37,26 +50,26 @@ function OrdersPage() {
     },
   });
   if (isOrderDetail) return <Outlet />;
-  if (loading) return <main className="mx-auto max-w-3xl px-4 py-10">Loading…</main>;
+  if (loading) return <main className="mx-auto max-w-3xl px-4 py-10">{t("loading")}</main>;
   if (!user)
     return (
       <main className="mx-auto max-w-3xl px-4 py-10">
-        <h1 className="text-4xl">My orders</h1>
+        <h1 className="text-4xl">{t("myOrders")}</h1>
         <Button asChild className="mt-6">
-          <Link to="/auth">Sign in to see your orders</Link>
+          <Link to="/auth">{t("signInToSeeOrders")}</Link>
         </Button>
       </main>
     );
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="text-4xl">My orders</h1>
+      <h1 className="text-4xl">{t("myOrders")}</h1>
       {isLoading ? (
-        <p className="mt-6">Loading…</p>
+        <p className="mt-6">{t("loading")}</p>
       ) : orders.length === 0 ? (
         <p className="mt-6 text-muted-foreground">
-          No orders yet.{" "}
+          {t("noOrders")}{" "}
           <Link to="/cakes" search={{ q: "" }} className="text-primary">
-            Browse cakes
+            {t("browseCakes")}
           </Link>
         </p>
       ) : (
@@ -73,14 +86,14 @@ function OrdersPage() {
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
                     <p className="text-xs text-muted-foreground">
-                      Order #{o.id.slice(0, 8)} · {new Date(o.created_at).toLocaleString()}
+                      {t("orderNo")} #{o.id.slice(0, 8)} · {new Date(o.created_at).toLocaleString()}
                     </p>
                     <p className="mt-1 text-lg font-semibold">{formatPrice(o.total)}</p>
                   </div>
                   <span
                     className={`rounded-full px-3 py-1 text-sm capitalize ${o.status === "cancelled" ? "bg-destructive/10 text-destructive" : "bg-secondary"}`}
                   >
-                    {o.status.replaceAll("_", " ")}
+                    {statusLabel(o.status)}
                   </span>
                 </div>
                 <ul className="mt-4 divide-y">
@@ -108,11 +121,30 @@ function OrdersPage() {
                   ))}
                 </ul>
                 <p className="mt-3 text-sm text-muted-foreground">
-                  Deliver to {o.customer_name} · {o.phone} · {o.address}
+                  {o.fulfillment_type === "pickup" ? t("pickup") : t("delivery")}
+                  {o.delivery_area ? ` · ${o.delivery_area}` : ""}
+                  {o.address ? ` · ${o.address}` : ""}
+                  {" · "}
+                  {o.customer_name} · {o.phone}
                   {o.delivery_date ? ` · on ${o.delivery_date}` : ""}
+                  {" · "}
+                  {t("paymentStatus")}:{" "}
+                  {o.payment_status === "paid"
+                    ? t("verified")
+                    : o.payment_status === "failed"
+                      ? t("rejected")
+                      : o.payment_status === "refunded"
+                        ? t("refunded")
+                        : t("pending")}
                 </p>
+                {(Number(o.discount) > 0 || Number(o.delivery_charge) > 0) && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t("deliveryChargeLabel")} {formatPrice(o.delivery_charge)} · {t("discount")}{" "}
+                    {formatPrice(o.discount)}
+                  </p>
+                )}
                 {o.note && <p className="text-sm text-muted-foreground">Note: {o.note}</p>}
-                <p className="mt-3 text-sm font-medium text-primary">View order details</p>
+                <p className="mt-3 text-sm font-medium text-primary">{t("viewOrderDetails")}</p>
               </Link>
             );
           })}

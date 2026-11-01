@@ -50,6 +50,55 @@
       "when": 1793232000000,
       "tag": "0006_integer_order_quantities",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793283497689,
+      "tag": "0007_inventory_pounds",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793369897689,
+      "tag": "0008_checkout_vouchers_payments",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793370000000,
+      "tag": "0009_percentage_vouchers_and_customer_pages",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793373600000,
+      "tag": "0010_customer_addresses_support_and_checkout_safety",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793395457176,
+      "tag": "0011_cake_photo_bucket",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793396000000,
+      "tag": "0012_customer_referrals_and_checkout_phone",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793397000000,
+      "tag": "0013_admin_financial_accuracy",
+      "breakpoints": true
     }
   ]
 }

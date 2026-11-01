@@ -1,256 +1,308 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { useEffect } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Minus, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { useCart, formatPrice, lineKey, linePrice } from "@/hooks/use-cart";
-import { isValidQuantity } from "@/lib/order-quantity";
 import { PoundSelect } from "@/components/PoundSelect";
-import { useAuth } from "@/hooks/use-auth";
+import { useCart, formatPrice, lineKey, linePrice } from "@/hooks/use-cart";
 import { cakeImage } from "@/lib/cake-images";
-import { useNavigate } from "@tanstack/react-router";
+import { OrderProgress } from "@/components/OrderProgress";
+import { useFulfillment } from "@/hooks/use-fulfillment";
+import { useSiteContent } from "@/hooks/use-site-content";
+import { useLanguage } from "@/hooks/use-language";
+import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/cart")({
   head: () => ({
     meta: [
       { title: "Your cart | Smart Cake Shop" },
-      { name: "description", content: "Review your cakes and place a Smart Cake Shop order." },
-      { property: "og:title", content: "Your cart | Smart Cake Shop" },
-      {
-        property: "og:description",
-        content: "Review your cakes and place a Smart Cake Shop order.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
+      { name: "description", content: "Review your selected cakes before checkout." },
+      { name: "robots", content: "noindex" },
     ],
   }),
   component: CartPage,
 });
 
 function CartPage() {
-  const { items, setPounds, setQty, remove, total, clear } = useCart();
+  const { items, setQty, setPounds, remove, total, count } = useCart();
+  const { fulfillment, setFulfillment } = useFulfillment();
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const [f, setF] = useState({ name: "", phone: "", address: "", date: "", note: "" });
-
-  const order = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (items.some((item) => !isValidQuantity(item.quantity))) {
-      toast.error("Cake quantity must be a whole number between 1 and 50.");
-      return;
+  const [selectedAddressId, setSelectedAddressId] = useState("");
+  const { data: content = {} } = useSiteContent();
+  const { t } = useLanguage();
+  const { data: addresses = [], error: addressesError } = useQuery({
+    queryKey: ["customer-addresses", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("customer_addresses")
+        .select("*")
+        .eq("user_id", user!.id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+  const deliveryCharge =
+    fulfillment === "delivery" ? Math.max(0, Number(content["delivery_charge"] || 0) || 0) : 0;
+  const deliveryAvailable = content["home_delivery_enabled"] !== "false";
+  const pickupAvailable = content["self_pickup_enabled"] !== "false";
+  useEffect(() => {
+    const savedAddressId = localStorage.getItem("smartcake-selected-address");
+    if (savedAddressId) setSelectedAddressId(savedAddressId);
+  }, []);
+  useEffect(() => {
+    if (selectedAddressId && !addresses.some((address) => address.id === selectedAddressId)) {
+      setSelectedAddressId("");
     }
-    const { error } = await supabase.rpc("place_order", {
-      _items: items.map((i) => ({ cake_id: i.cake_id, quantity: i.quantity, pounds: i.pounds })),
-      _name: f.name,
-      _phone: f.phone,
-      _address: f.address,
-      _delivery_date: f.date || null,
-      _note: f.note,
-    });
-    if (error) {
-      toast.error(error.message);
-      return;
+  }, [addresses, selectedAddressId]);
+  useEffect(() => {
+    if (fulfillment === "delivery" && !deliveryAvailable && pickupAvailable) {
+      setFulfillment("pickup");
+    } else if (fulfillment === "pickup" && !pickupAvailable && deliveryAvailable) {
+      setFulfillment("delivery");
     }
-    clear();
-    toast.success("Order placed! You can track it in My orders.");
-    navigate({ to: "/orders" });
-  };
+  }, [deliveryAvailable, fulfillment, pickupAvailable, setFulfillment]);
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="text-4xl">Your cart</h1>
+    <main className="mx-auto max-w-6xl px-4 py-8 sm:py-10">
+      <OrderProgress step="cart" />
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-sm text-muted-foreground">
+            {count} {t("items")}
+          </p>
+          <h1 className="font-display text-4xl">{t("cart")}</h1>
+        </div>
+        <Button asChild variant="outline">
+          <Link to="/cakes" search={{ q: "" }}>
+            {t("continueShopping")}
+          </Link>
+        </Button>
+      </div>
+
       {items.length === 0 ? (
-        <p className="mt-6 text-muted-foreground">Your cart is empty.</p>
+        <section className="mt-7 rounded-2xl bg-card p-8 text-center shadow-soft">
+          <p className="text-lg font-medium">{t("emptyCart")}</p>
+          <p className="mt-2 text-muted-foreground">{t("addCakeToStart")}</p>
+          <Button asChild className="mt-5">
+            <Link to="/cakes" search={{ q: "" }}>
+              {t("browseCakes")}
+            </Link>
+          </Button>
+        </section>
       ) : (
-        <>
-          <ul className="mt-6 divide-y">
-            {items.map((i) => (
-              <li key={lineKey(i)} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center">
-                <div className="flex min-w-0 items-center gap-3 sm:flex-1">
-                  {i.image_url ? (
-                    <img
-                      src={cakeImage(i.image_url)}
-                      alt={i.name}
-                      className="h-16 w-16 shrink-0 rounded-md object-cover"
-                      onError={(event) => {
-                        event.currentTarget.hidden = true;
-                      }}
+        <div className="mt-7 grid items-start gap-8 lg:grid-cols-[minmax(0,1.3fr)_minmax(280px,0.7fr)]">
+          <div className="space-y-5">
+            <section className="rounded-2xl bg-card p-4 shadow-soft sm:p-6">
+              <h2 className="text-xl font-semibold">{t("fulfilmentChoice")}</h2>
+              <fieldset className="mt-3 grid gap-3 sm:grid-cols-2">
+                <legend className="sr-only">Choose order fulfilment</legend>
+                {[
+                  {
+                    value: "delivery" as const,
+                    label: t("delivery"),
+                    available: deliveryAvailable,
+                  },
+                  { value: "pickup" as const, label: t("pickup"), available: pickupAvailable },
+                ].map((option) => (
+                  <label
+                    key={option.value}
+                    className={`rounded-xl border p-4 ${
+                      !option.available ? "cursor-not-allowed opacity-50" : "cursor-pointer"
+                    } ${
+                      fulfillment === option.value ? "border-primary bg-primary/5" : "border-input"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="cart-fulfillment"
+                      checked={fulfillment === option.value}
+                      disabled={!option.available}
+                      onChange={() => setFulfillment(option.value)}
+                      className="mr-2 accent-primary"
                     />
-                  ) : (
-                    <div className="h-16 w-16 shrink-0 rounded-md bg-muted" />
-                  )}
-                  <div className="min-w-0">
-                    <p className="break-words font-medium">{i.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {formatPrice(linePrice(i))} per cake
-                    </p>
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <label className="flex items-center gap-2 text-sm">
-                    Weight{" "}
-                    <PoundSelect
-                      value={i.pounds}
-                      onChange={(p) => {
-                        if (!setPounds(lineKey(i), p)) {
-                          toast.error(
-                            "Changing this weight would exceed 50 cakes in one cart line.",
-                          );
-                        }
-                      }}
-                    />
+                    <span className="font-medium">{option.label}</span>
+                    {option.value === "pickup" ? (
+                      <span className="mt-1 block text-sm text-muted-foreground">
+                        {content["shop_address"] || t("pickup")}
+                      </span>
+                    ) : (
+                      <span className="mt-1 block text-sm text-muted-foreground">
+                        {t("deliveryCharge")}:{" "}
+                        {deliveryCharge ? formatPrice(deliveryCharge) : t("free")}
+                      </span>
+                    )}
                   </label>
-                  <QtyStepper value={i.quantity} onChange={(q) => setQty(lineKey(i), q)} />
-                  <span className="min-w-20 text-right font-medium">
-                    {formatPrice(linePrice(i) * i.quantity)}
-                  </span>
-                  <Button variant="outline" size="sm" onClick={() => remove(lineKey(i))}>
-                    Remove
-                  </Button>
+                ))}
+              </fieldset>
+              {fulfillment === "pickup" && (
+                <p className="mt-3 text-sm text-muted-foreground">
+                  {t("pickupDiscountNotConfigured")}
+                </p>
+              )}
+              {fulfillment === "delivery" && (
+                <div className="mt-3 space-y-2">
+                  {user && addresses.length > 0 ? (
+                    <label className="grid gap-1.5 text-sm font-medium">
+                      {t("savedAddress")}
+                      <select
+                        className="h-10 rounded-md border border-input bg-background px-3"
+                        value={selectedAddressId}
+                        onChange={(event) => {
+                          setSelectedAddressId(event.target.value);
+                          localStorage.setItem("smartcake-selected-address", event.target.value);
+                        }}
+                      >
+                        <option value="">{t("chooseAddress")}</option>
+                        {addresses.map((address) => (
+                          <option key={address.id} value={address.id}>
+                            {address.recipient_name} · {address.address_line}, {address.area},{" "}
+                            {address.city}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      {t("chooseDeliveryAddressCheckout")}
+                    </p>
+                  )}
+                  {addressesError && (
+                    <p role="alert" className="text-sm text-destructive">
+                      Saved addresses could not be loaded. You can still add one at checkout.
+                    </p>
+                  )}
+                  {selectedAddressId &&
+                    addresses.find((address) => address.id === selectedAddressId) && (
+                      <p className="text-sm text-muted-foreground">
+                        {(() => {
+                          const address = addresses.find(
+                            (entry) => entry.id === selectedAddressId,
+                          )!;
+                          return `${address.address_line}, ${address.area}, ${address.city}`;
+                        })()}
+                      </p>
+                    )}
                 </div>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-4 text-right text-xl">Total: {formatPrice(total)}</p>
-          {user ? (
-            <form onSubmit={order} className="mt-6 grid gap-3">
-              <Input
-                placeholder="Name"
-                required
-                value={f.name}
-                onChange={(e) => setF({ ...f, name: e.target.value })}
-              />
-              <Input
-                placeholder="Phone"
-                required
-                value={f.phone}
-                onChange={(e) => setF({ ...f, phone: e.target.value })}
-              />
-              <Input
-                placeholder="Delivery address"
-                required
-                value={f.address}
-                onChange={(e) => setF({ ...f, address: e.target.value })}
-              />
-              <Input
-                type="date"
-                value={f.date}
-                onChange={(e) => setF({ ...f, date: e.target.value })}
-              />
-              <Input
-                placeholder="Note (message on cake…)"
-                value={f.note}
-                onChange={(e) => setF({ ...f, note: e.target.value })}
-              />
-              <Button type="submit" size="lg">
-                Place order
+              )}
+            </section>
+            <section className="rounded-2xl bg-card p-4 shadow-soft sm:p-6">
+              <h2 className="text-xl font-semibold">{t("selectedCakes")}</h2>
+              <ul className="mt-3 divide-y">
+                {items.map((item) => {
+                  const key = lineKey(item);
+                  return (
+                    <li key={key} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center">
+                      <div className="flex min-w-0 items-center gap-3 sm:flex-1">
+                        {item.image_url ? (
+                          <img
+                            src={cakeImage(item.image_url)}
+                            alt={item.name}
+                            className="h-16 w-16 shrink-0 rounded-lg object-cover"
+                          />
+                        ) : (
+                          <div className="h-16 w-16 shrink-0 rounded-lg bg-muted" />
+                        )}
+                        <div className="min-w-0">
+                          <p className="break-words font-medium">{item.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {item.pounds} lb · {formatPrice(linePrice(item))} each
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <label className="flex items-center gap-2 text-sm">
+                          {t("size")}
+                          <PoundSelect
+                            value={item.pounds}
+                            onChange={(pounds) => {
+                              if (!setPounds(key, pounds)) {
+                                toast.error(
+                                  "Changing this weight would exceed 50 cakes in one cart line.",
+                                );
+                              }
+                            }}
+                          />
+                        </label>
+                        <div
+                          className="flex items-center gap-1"
+                          aria-label={`Quantity for ${item.name}`}
+                        >
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            aria-label={`Decrease ${item.name} quantity`}
+                            disabled={item.quantity <= 1}
+                            onClick={() => setQty(key, item.quantity - 1)}
+                          >
+                            <Minus className="h-4 w-4" />
+                          </Button>
+                          <span className="min-w-8 text-center" aria-live="polite">
+                            {item.quantity}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            aria-label={`Increase ${item.name} quantity`}
+                            disabled={item.quantity >= 50}
+                            onClick={() => setQty(key, item.quantity + 1)}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <span className="min-w-20 text-right font-medium">
+                          {formatPrice(linePrice(item) * item.quantity)}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`${t("remove")} ${item.name}`}
+                          onClick={() => remove(key)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          </div>
+
+          <aside className="space-y-4 lg:sticky lg:top-28">
+            <section className="rounded-2xl bg-card p-4 shadow-soft sm:p-6">
+              <h2 className="text-xl font-semibold">{t("orderSummary")}</h2>
+              <div className="mt-4 flex justify-between gap-3 text-sm">
+                <span>
+                  {t("subtotal")} ({count})
+                </span>
+                <span>{formatPrice(total)}</span>
+              </div>
+              <div className="mt-3 flex justify-between gap-3 text-sm">
+                <span>{fulfillment === "pickup" ? t("pickup") : t("deliveryCharge")}</span>
+                <span>{deliveryCharge ? formatPrice(deliveryCharge) : t("free")}</span>
+              </div>
+              <div className="mt-3 flex justify-between gap-3 border-t pt-3 font-semibold">
+                <span>{t("totalPayable")}</span>
+                <span>{formatPrice(total + deliveryCharge)}</span>
+              </div>
+              <p className="mt-3 text-sm text-muted-foreground">
+                Voucher discount is validated and applied at checkout.
+              </p>
+              <Button asChild variant="outline" className="mt-4 w-full">
+                <Link to="/vouchers">Apply Voucher</Link>
               </Button>
-            </form>
-          ) : (
-            <Button asChild className="mt-6">
-              <Link to="/auth">Sign in to place your order</Link>
-            </Button>
-          )}
-        </>
+              <Button asChild size="lg" className="mt-5 w-full">
+                <Link to="/checkout">{t("continueCheckout")}</Link>
+              </Button>
+            </section>
+          </aside>
+        </div>
       )}
     </main>
-  );
-}
-
-function QtyStepper({ value, onChange }: { value: number; onChange: (q: number) => void }) {
-  const [text, setText] = useState(String(value));
-  const [error, setError] = useState("");
-  useEffect(() => {
-    setText(String(value));
-  }, [value]);
-
-  const commit = (raw: string) => {
-    const n = Number(raw);
-    if (!raw || !isValidQuantity(n)) {
-      setText(String(value));
-      setError("Enter a whole number between 1 and 50.");
-      return;
-    }
-    setError("");
-    setText(String(n));
-    onChange(n);
-  };
-
-  const bump = (delta: number) => {
-    const quantity = value + delta;
-    if (!isValidQuantity(quantity)) return;
-    setError("");
-    setText(String(quantity));
-    onChange(quantity);
-  };
-
-  return (
-    <div>
-      <div
-        className={`flex w-28 items-stretch overflow-hidden rounded-md border bg-card ${error ? "border-destructive" : "border-input"}`}
-      >
-        <input
-          aria-label="Quantity"
-          type="number"
-          min={1}
-          max={50}
-          step={1}
-          inputMode="numeric"
-          className="min-w-0 flex-1 bg-transparent px-2 py-1.5 text-sm outline-none"
-          value={text}
-          onChange={(e) => {
-            const raw = e.target.value;
-            setText(raw);
-            if (raw && isValidQuantity(Number(raw))) {
-              setError("");
-              onChange(Number(raw));
-            } else if (raw) {
-              setError("Enter a whole number between 1 and 50.");
-            }
-          }}
-          onBlur={(e) => commit(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              commit(text);
-            }
-            if (e.key === "ArrowUp") {
-              e.preventDefault();
-              bump(1);
-            }
-            if (e.key === "ArrowDown") {
-              e.preventDefault();
-              bump(-1);
-            }
-          }}
-          aria-invalid={!!error}
-        />
-        <div className="flex flex-col border-l border-input">
-          <button
-            type="button"
-            aria-label="Increase quantity"
-            className="flex h-1/2 items-center justify-center px-2 transition-colors hover:bg-muted"
-            onClick={() => bump(1)}
-          >
-            <ChevronUp className="h-3 w-3" />
-          </button>
-          <button
-            type="button"
-            aria-label="Decrease quantity"
-            className="flex h-1/2 items-center justify-center px-2 transition-colors hover:bg-muted"
-            onClick={() => bump(-1)}
-          >
-            <ChevronDown className="h-3 w-3" />
-          </button>
-        </div>
-      </div>
-      {error && (
-        <p role="alert" className="mt-1 max-w-36 text-xs text-destructive">
-          {error}
-        </p>
-      )}
-    </div>
   );
 }
