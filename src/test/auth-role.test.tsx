@@ -39,14 +39,11 @@ describe("administrator role verification", () => {
     mocks.rpc.mockReset().mockResolvedValue({ data: false, error: null });
   });
 
-  it("treats a missing initial session as signed out", async () => {
-    mocks.getUser.mockResolvedValue({
-      data: { user: null },
-      error: Object.assign(new Error("Auth session missing!"), {
-        name: "AuthSessionMissingError",
-      }),
-    });
+  it("waits for Supabase to restore its initial session before treating the user as signed out", async () => {
     const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+
+    expect(result.current.loading).toBe(true);
+    act(() => mocks.authCallback("INITIAL_SESSION", null));
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.user).toBeNull();
@@ -57,6 +54,7 @@ describe("administrator role verification", () => {
   it("recognizes an approved admin role returned by Supabase", async () => {
     mocks.rpc.mockResolvedValue({ data: true, error: null });
     const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    act(() => mocks.authCallback("INITIAL_SESSION", { user }));
 
     await waitFor(() => expect(result.current.isAdmin).toBe(true));
     expect(result.current.roleError).toBeNull();
@@ -67,6 +65,7 @@ describe("administrator role verification", () => {
     mocks.rpc.mockResolvedValue({ data: null, error: roleError });
     vi.spyOn(console, "error").mockImplementation(() => {});
     const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+    act(() => mocks.authCallback("INITIAL_SESSION", { user }));
 
     await waitFor(() => expect(result.current.roleError).toBe(roleError.message));
     expect(result.current.isAdmin).toBe(false);
@@ -82,9 +81,8 @@ describe("administrator role verification", () => {
     const point = { latitude: 23.7, longitude: 90.4 };
     savePendingProfileLocation(point, "Dhaka");
     renderHook(() => useAuth(), { wrapper: AuthProvider });
+    act(() => mocks.authCallback("INITIAL_SESSION", { user }));
     await waitFor(() => expect(mocks.rpc).toHaveBeenCalledWith("has_role", expect.any(Object)));
-
-    act(() => mocks.authCallback("SIGNED_IN", { user }));
 
     await waitFor(() =>
       expect(mocks.rpc).toHaveBeenCalledWith("save_profile_location_if_missing", {
@@ -94,5 +92,23 @@ describe("administrator role verification", () => {
       }),
     );
     expect(sessionStorage.getItem("smartcake-pending-profile-location")).toBeNull();
+
+    act(() => mocks.authCallback("SIGNED_IN", { user }));
+    await waitFor(() => expect(mocks.rpc).toHaveBeenCalledTimes(3));
+    expect(
+      mocks.rpc.mock.calls.filter(([name]) => name === "save_profile_location_if_missing"),
+    ).toHaveLength(1);
+  });
+
+  it("ignores an outdated initial-session event when a newer sign-in arrives", async () => {
+    const { result } = renderHook(() => useAuth(), { wrapper: AuthProvider });
+
+    act(() => {
+      mocks.authCallback("INITIAL_SESSION", null);
+      mocks.authCallback("SIGNED_IN", { user });
+    });
+
+    await waitFor(() => expect(result.current.user).toEqual(user));
+    expect(result.current.loading).toBe(false);
   });
 });

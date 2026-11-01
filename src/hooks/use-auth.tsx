@@ -31,6 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadSequence = useRef(0);
 
   const load = async (u: User | null, sequence = ++loadSequence.current): Promise<RoleCheck> => {
+    if (sequence !== loadSequence.current) return { isAdmin: false, error: null };
     setUser(u);
     if (!u) {
       setIsAdmin(false);
@@ -67,28 +68,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const initialSequence = loadSequence.current;
-    void supabase.auth
-      .getUser()
-      .then(({ data, error }) => {
-        if (loadSequence.current !== initialSequence) return;
-        if (isMissingSession(error)) return load(null);
-        if (error) throw error;
-        return load(data.user);
-      })
-      .catch((error: unknown) => {
-        const message =
-          error instanceof Error ? error.message : "Your sign-in session could not be verified.";
-        console.error("Could not restore the sign-in session.", error);
-        setIsAdmin(false);
-        setRoleError(message);
-        setLoading(false);
-      });
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") {
+      if (
+        event === "INITIAL_SESSION" ||
+        event === "SIGNED_IN" ||
+        event === "SIGNED_OUT" ||
+        event === "USER_UPDATED"
+      ) {
         const sequence = ++loadSequence.current;
         setTimeout(() => {
-          if (event === "SIGNED_IN" && session?.user) {
+          if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session?.user) {
             const pendingLocation = consumePendingProfileLocation();
             if (pendingLocation) {
               void (async () => {

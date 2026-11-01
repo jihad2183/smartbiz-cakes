@@ -2,7 +2,6 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useLanguage } from "@/hooks/use-language";
@@ -203,6 +202,23 @@ function AuthPage() {
           }
           const selectedLocation = selectedLocationRef.current;
           if (isValidDeliveryCoordinates(selectedLocation)) {
+            if (!locationAddressRef.current) {
+              const controller = new AbortController();
+              const timeout = window.setTimeout(() => controller.abort(), 7000);
+              try {
+                const address = await reverseGeocodeLocation(selectedLocation, controller.signal);
+                if (address) {
+                  locationAddressRef.current = address;
+                  setLocationAddress(address);
+                }
+              } catch (error) {
+                if (!(error instanceof Error && error.name === "AbortError")) {
+                  console.error("Could not look up the Google sign-in location.", error);
+                }
+              } finally {
+                window.clearTimeout(timeout);
+              }
+            }
             try {
               savePendingProfileLocation(selectedLocation, locationAddressRef.current || null);
             } catch (error) {
@@ -215,14 +231,19 @@ function AuthPage() {
           const referralCode = new URLSearchParams(window.location.search).get("ref");
           if (referralCode) redirectUrl.searchParams.set("ref", referralCode);
           try {
-            const r = await lovable.auth.signInWithOAuth("google", {
-              redirect_uri: redirectUrl.toString(),
+            const { error } = await supabase.auth.signInWithOAuth({
+              provider: "google",
+              options: { redirectTo: redirectUrl.toString() },
             });
-            if (r.error) throw r.error;
+            if (error) throw error;
           } catch (error) {
             clearPendingProfileLocation();
             console.error("Google sign-in failed.", error);
-            toast.error("Google sign-in failed");
+            toast.error(
+              error instanceof Error
+                ? `Google sign-in failed: ${error.message}`
+                : "Google sign-in failed",
+            );
           }
         }}
       >

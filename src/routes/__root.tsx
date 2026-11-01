@@ -127,6 +127,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <OAuthCallbackNotice />
         <ReferralAttribution />
         <LanguageProvider>
           <CartProvider>
@@ -139,6 +140,34 @@ function RootComponent() {
       </AuthProvider>
     </QueryClientProvider>
   );
+}
+
+function OAuthCallbackNotice() {
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const hashParams = new URLSearchParams(url.hash.slice(1));
+    const callbackParams = [url.searchParams, hashParams];
+    const hasCallbackError = callbackParams.some(
+      (params) =>
+        params.has("error") || params.has("error_code") || params.has("error_description"),
+    );
+    if (!hasCallbackError) return;
+
+    window.setTimeout(
+      () => toast.error("Google sign-in could not be completed. Please try again."),
+      0,
+    );
+    for (const params of callbackParams) {
+      params.delete("error");
+      params.delete("error_code");
+      params.delete("error_description");
+    }
+    hashParams.delete("sb");
+    url.hash = hashParams.size > 0 ? hashParams.toString() : "";
+    window.history.replaceState(window.history.state, "", url);
+  }, []);
+
+  return null;
 }
 
 function ReferralAttribution() {
