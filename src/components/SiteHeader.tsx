@@ -61,11 +61,14 @@ export function SiteHeader() {
       {content["announcement"] && (
         <p className="bg-secondary px-4 py-2 text-center text-sm">{content["announcement"]}</p>
       )}
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-3 sm:gap-4">
-        <Link to="/" className="shrink-0 font-display text-xl font-semibold text-cocoa sm:text-2xl">
+      <div className="site-header-inner mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-3 sm:gap-4">
+        <Link
+          to="/"
+          className="site-header-brand shrink-0 font-display text-xl font-semibold text-cocoa sm:text-2xl"
+        >
           {content["shop_name"] || "Smart Cake"}
         </Link>
-        <nav className="hidden gap-5 text-sm md:flex">
+        <nav className="site-header-desktop-nav hidden gap-5 text-sm md:flex">
           <Link to="/cakes" search={{ q: "" }} className="hover:text-primary">
             {t("allCakes")}
           </Link>
@@ -95,7 +98,7 @@ export function SiteHeader() {
           )}
         </nav>
         <form
-          className="relative order-3 w-full sm:order-none sm:ml-auto sm:w-56 md:w-64"
+          className="site-header-search relative order-3 w-full sm:order-none sm:ml-auto sm:w-56 md:w-64"
           onSubmit={(e) => {
             e.preventDefault();
             navigate({ to: "/cakes", search: { q } });
@@ -111,7 +114,7 @@ export function SiteHeader() {
         </form>
         <Link
           to="/cart"
-          className="relative shrink-0 rounded-full p-2 hover:bg-muted"
+          className="site-header-cart relative shrink-0 rounded-full p-2 hover:bg-muted"
           aria-label={t("cart")}
         >
           <ShoppingBag className="h-5 w-5" />
@@ -122,7 +125,7 @@ export function SiteHeader() {
           )}
         </Link>
         {user ? (
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="site-header-account flex shrink-0 items-center gap-2">
             <Link
               to="/account"
               aria-label={t("myAccount")}
@@ -139,12 +142,12 @@ export function SiteHeader() {
             </Button>
           </div>
         ) : (
-          <Button asChild size="sm" className="shrink-0">
+          <Button asChild size="sm" className="site-header-account shrink-0">
             <Link to="/auth">{t("signIn")}</Link>
           </Button>
         )}
       </div>
-      <nav className="flex flex-wrap gap-x-4 gap-y-2 px-4 pb-2 text-sm md:hidden">
+      <nav className="site-header-mobile-nav flex flex-wrap gap-x-4 gap-y-2 px-4 pb-2 text-sm md:hidden">
         <Link to="/cakes" search={{ q: "" }}>
           {t("allCakes")}
         </Link>

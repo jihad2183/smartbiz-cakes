@@ -159,9 +159,9 @@ function AuthPage() {
   };
 
   return (
-    <main className="mx-auto max-w-sm px-4 py-16">
+    <main className="auth-page mx-auto max-w-sm px-4 py-16">
       <h1 className="text-3xl">{mode === "in" ? t("welcomeBack") : t("createAccount")}</h1>
-      <form onSubmit={submit} className="mt-6 space-y-3">
+      <form onSubmit={submit} className="auth-form mt-6 space-y-3">
         {mode === "up" && (
           <Input
             placeholder={t("fullName")}
@@ -191,7 +191,7 @@ function AuthPage() {
       </form>
       <Button
         variant="outline"
-        className="mt-3 w-full"
+        className="mobile-google-login mt-3 w-full"
         type="button"
         onClick={async () => {
           clearPendingProfileLocation();

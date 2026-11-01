@@ -24,9 +24,9 @@ export function CakeCard({ cake }: { cake: Cake }) {
   const { t } = useLanguage();
   const [lb, setLb] = useState(1);
   return (
-    <article className="group flex flex-col overflow-hidden rounded-2xl bg-card shadow-soft transition hover:-translate-y-1">
+    <article className="mobile-cake-card group flex flex-col overflow-hidden rounded-2xl bg-card shadow-soft transition hover:-translate-y-1">
       <Link to="/cakes/$id" params={{ id: cake.id }} search={{ q: "" }}>
-        <div className="aspect-[4/3] overflow-hidden bg-muted">
+        <div className="mobile-cake-card-image aspect-[4/3] overflow-hidden bg-muted">
           {cake.image_url && (
             <img
               src={cakeImage(cake.image_url)}
@@ -41,7 +41,7 @@ export function CakeCard({ cake }: { cake: Cake }) {
             />
           )}
         </div>
-        <div className="p-4">
+        <div className="mobile-cake-card-copy p-4">
           <p className="text-xs uppercase tracking-widest text-muted-foreground">{cake.category}</p>
           <h3 className="mt-1 text-lg font-semibold">{cake.name}</h3>
           <div className="mt-2 flex items-center justify-between">
@@ -57,7 +57,7 @@ export function CakeCard({ cake }: { cake: Cake }) {
           </div>
         </div>
       </Link>
-      <div className="mt-auto flex gap-2 px-4 pb-4">
+      <div className="mobile-cake-card-actions mt-auto flex gap-2 px-4 pb-4">
         <PoundSelect value={lb} onChange={setLb} />
         <Button
           className="flex-1"

@@ -34,9 +34,11 @@ function pageNumbers(page: number, pageCount: number) {
 export function CakeCatalog({
   title,
   initialQuery = "",
+  gridClassName,
 }: {
   title: string;
   initialQuery?: string;
+  gridClassName?: string;
 }) {
   const { t } = useLanguage();
   const [query, setQuery] = useState(initialQuery);
@@ -102,7 +104,7 @@ export function CakeCatalog({
     <section>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <h2 className="text-3xl">{title}</h2>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="cake-catalog-controls grid gap-3 sm:grid-cols-3">
           <Input
             aria-label={t("searchCakes")}
             placeholder={t("searchCakes")}
@@ -152,7 +154,9 @@ export function CakeCatalog({
       ) : !data?.cakes.length ? (
         <p className="mt-6 text-muted-foreground">{t("noCakesMatch")}</p>
       ) : (
-        <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div
+          className={`${gridClassName ? `${gridClassName} ` : ""}cake-catalog-grid mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`}
+        >
           {data.cakes.map((cake) => (
             <CakeCard key={cake.id} cake={cake} />
           ))}

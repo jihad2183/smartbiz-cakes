@@ -23,9 +23,9 @@ function CakesPage() {
   const isDetail = useMatchRoute()({ to: "/cakes/$id" });
   if (isDetail) return <Outlet />;
   return (
-    <main className="mx-auto max-w-6xl px-4 py-10">
+    <main className="all-cakes-page mx-auto max-w-6xl px-4 py-10">
       <h1 className="mb-6 text-4xl">{q.trim() ? `${t("resultsFor")} “${q}”` : t("allCakes")}</h1>
-      <CakeCatalog title={t("browseCakes")} initialQuery={q} />
+      <CakeCatalog title={t("browseCakes")} initialQuery={q} gridClassName="all-cakes-grid" />
     </main>
   );
 }

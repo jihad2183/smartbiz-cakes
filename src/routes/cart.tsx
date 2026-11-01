@@ -95,7 +95,7 @@ function CartPage() {
           </Button>
         </section>
       ) : (
-        <div className="mt-7 grid items-start gap-8 lg:grid-cols-[minmax(0,1.3fr)_minmax(280px,0.7fr)]">
+        <div className="cart-layout mt-7 grid items-start gap-8 lg:grid-cols-[minmax(0,1.3fr)_minmax(280px,0.7fr)]">
           <div className="space-y-5">
             <section className="rounded-2xl bg-card p-4 shadow-soft sm:p-6">
               <h2 className="text-xl font-semibold">{t("fulfilmentChoice")}</h2>
@@ -196,7 +196,10 @@ function CartPage() {
                 {items.map((item) => {
                   const key = lineKey(item);
                   return (
-                    <li key={key} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center">
+                    <li
+                      key={key}
+                      className="cart-item flex flex-col gap-3 py-4 sm:flex-row sm:items-center"
+                    >
                       <div className="flex min-w-0 items-center gap-3 sm:flex-1">
                         {item.image_url ? (
                           <img
@@ -214,7 +217,7 @@ function CartPage() {
                           </p>
                         </div>
                       </div>
-                      <div className="flex flex-wrap items-center gap-3">
+                      <div className="cart-item-controls flex flex-wrap items-center gap-3">
                         <label className="flex items-center gap-2 text-sm">
                           {t("size")}
                           <PoundSelect
@@ -273,7 +276,7 @@ function CartPage() {
             </section>
           </div>
 
-          <aside className="space-y-4 lg:sticky lg:top-28">
+          <aside className="cart-summary space-y-4 lg:sticky lg:top-28">
             <section className="rounded-2xl bg-card p-4 shadow-soft sm:p-6">
               <h2 className="text-xl font-semibold">{t("orderSummary")}</h2>
               <div className="mt-4 flex justify-between gap-3 text-sm">

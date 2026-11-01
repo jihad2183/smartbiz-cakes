@@ -588,7 +588,7 @@ function CheckoutPage() {
           </Button>
         </section>
       ) : (
-        <div className="mt-7 grid items-start gap-8 lg:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.7fr)]">
+        <div className="checkout-layout mt-7 grid items-start gap-8 lg:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.7fr)]">
           <div className="space-y-7">
             <section className="rounded-2xl bg-card p-4 shadow-soft sm:p-6">
               <h2 className="text-xl font-semibold">{t("orderItems")}</h2>
@@ -596,7 +596,7 @@ function CheckoutPage() {
                 {items.map((i) => (
                   <li
                     key={lineKey(i)}
-                    className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center"
+                    className="checkout-item flex flex-col gap-3 py-4 sm:flex-row sm:items-center"
                   >
                     <div className="flex min-w-0 items-center gap-3 sm:flex-1">
                       {i.image_url ? (
@@ -615,7 +615,7 @@ function CheckoutPage() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="checkout-item-controls flex flex-wrap items-center gap-3">
                       <label className="flex items-center gap-2 text-sm">
                         {t("size")}
                         <PoundSelect
@@ -1021,7 +1021,7 @@ function CheckoutPage() {
             )}
           </div>
 
-          <aside className="space-y-4 lg:sticky lg:top-28">
+          <aside className="checkout-summary space-y-4 lg:sticky lg:top-28">
             <section className="rounded-2xl bg-card p-4 shadow-soft sm:p-6">
               <h2 className="text-xl font-semibold">{t("voucherCode")}</h2>
               <p className="mt-2 text-sm text-muted-foreground">

@@ -59,11 +59,11 @@ function AdminLogin() {
   };
 
   return (
-    <main className="mx-auto max-w-sm px-4 py-16">
+    <main className="admin-login-page mx-auto max-w-sm px-4 py-16">
       <ShieldCheck className="mb-3 h-10 w-10 text-primary" />
       <h1 className="text-3xl">Admin portal login</h1>
       <p className="mt-2 text-sm text-muted-foreground">Only approved administrators can enter.</p>
-      <form onSubmit={submit} className="mt-6 space-y-3">
+      <form onSubmit={submit} className="auth-form mt-6 space-y-3">
         <Input
           type="email"
           placeholder="Admin email"

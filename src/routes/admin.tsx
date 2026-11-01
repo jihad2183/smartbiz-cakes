@@ -630,15 +630,15 @@ function AdminPage() {
   };
 
   return (
-    <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 md:flex-row">
-      <aside className="md:w-56 md:shrink-0">
+    <div className="admin-layout mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 md:flex-row">
+      <aside className="admin-sidebar md:w-56 md:shrink-0">
         <p className="mb-3 font-display text-xl">Admin portal</p>
-        <nav className="flex flex-wrap gap-1 md:flex-col">
+        <nav className="admin-nav flex flex-wrap gap-1 md:flex-col">
           {nav.map(([id, label, Icon]) => (
             <button
               key={id}
               onClick={() => goToSection(id)}
-              className={`flex items-center gap-2 rounded-md px-3 py-2 text-left text-sm ${section === id ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+              className={`admin-nav-link flex items-center gap-2 rounded-md px-3 py-2 text-left text-sm ${section === id ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
             >
               <Icon className="h-4 w-4" />
               {label}
@@ -653,14 +653,14 @@ function AdminPage() {
             href="/"
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted"
+            className="admin-nav-link flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted"
           >
             <Store className="h-4 w-4" />
             View shop
           </a>
         </nav>
       </aside>
-      <main className="min-w-0 flex-1">
+      <main className="admin-main min-w-0 flex-1">
         {section === "dashboard" && (
           <div className="space-y-6">
             <FinancialDashboard

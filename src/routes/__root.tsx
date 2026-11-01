@@ -7,19 +7,22 @@ import {
   HeadContent,
   Scripts,
   type ErrorComponentProps,
+  useRouterState,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { CakeSlice, ClipboardList, Home, ShoppingBag, UserRound } from "lucide-react";
 import { toast } from "sonner";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { CartProvider } from "@/hooks/use-cart";
-import { LanguageProvider } from "@/hooks/use-language";
+import { LanguageProvider, useLanguage } from "@/hooks/use-language";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Toaster } from "@/components/ui/sonner";
 import { useSiteContent } from "@/hooks/use-site-content";
 import { supabase } from "@/integrations/supabase/client";
+import { useCart } from "@/hooks/use-cart";
 
 function NotFoundComponent() {
   return (
@@ -132,6 +135,7 @@ function RootComponent() {
         <LanguageProvider>
           <CartProvider>
             <SiteHeader />
+            <MobileBottomNavigation />
             <Outlet />
             <ShopFooter />
             <Toaster />
@@ -139,6 +143,66 @@ function RootComponent() {
         </LanguageProvider>
       </AuthProvider>
     </QueryClientProvider>
+  );
+}
+
+function MobileBottomNavigation() {
+  const { count } = useCart();
+  const { t } = useLanguage();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+
+  if (pathname.startsWith("/admin")) return null;
+
+  const active = (path: string) =>
+    pathname === path || (path !== "/" && pathname.startsWith(`${path}/`));
+
+  return (
+    <nav className="mobile-bottom-nav" aria-label="Primary navigation">
+      <Link
+        to="/"
+        aria-current={active("/") ? "page" : undefined}
+        className={active("/") ? "is-active" : ""}
+      >
+        <Home aria-hidden="true" />
+        <span>{t("home")}</span>
+      </Link>
+      <Link
+        to="/cakes"
+        search={{ q: "" }}
+        aria-current={active("/cakes") ? "page" : undefined}
+        className={active("/cakes") ? "is-active" : ""}
+      >
+        <CakeSlice aria-hidden="true" />
+        <span>{t("allCakes")}</span>
+      </Link>
+      <Link
+        to="/cart"
+        aria-current={active("/cart") ? "page" : undefined}
+        className={active("/cart") ? "is-active" : ""}
+      >
+        <span className="mobile-bottom-nav-icon">
+          <ShoppingBag aria-hidden="true" />
+          {count > 0 && <span className="mobile-bottom-nav-count">{count}</span>}
+        </span>
+        <span>{t("cart")}</span>
+      </Link>
+      <Link
+        to="/orders"
+        aria-current={active("/orders") ? "page" : undefined}
+        className={active("/orders") ? "is-active" : ""}
+      >
+        <ClipboardList aria-hidden="true" />
+        <span>{t("myOrders")}</span>
+      </Link>
+      <Link
+        to="/account"
+        aria-current={active("/account") ? "page" : undefined}
+        className={active("/account") ? "is-active" : ""}
+      >
+        <UserRound aria-hidden="true" />
+        <span>{t("myAccount")}</span>
+      </Link>
+    </nav>
   );
 }
 
