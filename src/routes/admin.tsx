@@ -35,6 +35,7 @@ import { isConfirmedOrder } from "@/lib/financial-report";
 import { FinancialDashboard } from "@/components/admin/FinancialDashboard";
 import { OrderPaymentEntry } from "@/components/admin/OrderPaymentEntry";
 import { DeliveryLocationMap } from "@/components/DeliveryLocationMap";
+import { BrandLogo } from "@/components/BrandLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -532,6 +533,7 @@ function AdminPage() {
   if (!user || !isAdmin)
     return (
       <main className="mx-auto max-w-lg px-4 py-16">
+        <BrandLogo className="mb-8" />
         <ShieldCheck className="mb-4 h-9 w-9 text-primary" />
         <h1 className="text-3xl">Administrators only</h1>
         <p className="mt-4 text-muted-foreground">
@@ -632,7 +634,11 @@ function AdminPage() {
   return (
     <div className="admin-layout mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 md:flex-row">
       <aside className="admin-sidebar md:w-56 md:shrink-0">
-        <p className="mb-3 font-display text-xl">Admin portal</p>
+        <BrandLogo
+          name={content["shop_name"] || "Smart Cake Shop"}
+          className="admin-brand-lockup mb-4"
+        />
+        <p className="mb-3 font-medium text-muted-foreground">Admin portal</p>
         <nav className="admin-nav flex flex-wrap gap-1 md:flex-col">
           {nav.map(([id, label, Icon]) => (
             <button

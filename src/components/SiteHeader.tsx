@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ShoppingBag, Search, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { BrandLogo } from "@/components/BrandLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
@@ -13,7 +14,7 @@ import { useLanguage } from "@/hooks/use-language";
 
 export function SiteHeader() {
   const { data: content = {} } = useSiteContent();
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
   const { count } = useCart();
   const { t } = useLanguage();
   const navigate = useNavigate();
@@ -57,16 +58,13 @@ export function SiteHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur">
+    <header className="site-header sticky top-0 z-30 border-b bg-background/90 backdrop-blur">
       {content["announcement"] && (
         <p className="bg-secondary px-4 py-2 text-center text-sm">{content["announcement"]}</p>
       )}
       <div className="site-header-inner mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-3 sm:gap-4">
-        <Link
-          to="/"
-          className="site-header-brand shrink-0 font-display text-xl font-semibold text-cocoa sm:text-2xl"
-        >
-          {content["shop_name"] || "Smart Cake"}
+        <Link to="/" className="site-header-brand shrink-0" aria-label="Smart Cake Shop home">
+          <BrandLogo name={content["shop_name"] || "Smart Cake Shop"} compact />
         </Link>
         <nav className="site-header-desktop-nav hidden gap-5 text-sm md:flex">
           <Link to="/cakes" search={{ q: "" }} className="hover:text-primary">
@@ -91,11 +89,6 @@ export function SiteHeader() {
             {t("cart")}
             {count > 0 && <span className="text-xs text-muted-foreground">({count})</span>}
           </Link>
-          {isAdmin && (
-            <Link to="/admin" className="font-medium text-primary">
-              {t("adminPanel")}
-            </Link>
-          )}
         </nav>
         <form
           className="site-header-search relative order-3 w-full sm:order-none sm:ml-auto sm:w-56 md:w-64"
@@ -158,11 +151,6 @@ export function SiteHeader() {
           {t("cart")}
           {count > 0 && ` (${count})`}
         </Link>
-        {isAdmin && (
-          <Link to="/admin" className="text-primary">
-            {t("adminPanel")}
-          </Link>
-        )}
       </nav>
     </header>
   );

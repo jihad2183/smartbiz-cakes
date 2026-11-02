@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { CakeSlice } from "lucide-react";
+import { ArrowRight, CakeSlice, Heart, PartyPopper, ShoppingBag } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CakeCatalog } from "@/components/CakeCatalog";
@@ -70,10 +70,32 @@ function Index() {
       return (data ?? []) as Cake[];
     },
   });
+  const benefits = [
+    {
+      icon: CakeSlice,
+      title: "Freshly Made",
+      description: "Fresh and delicious cakes for every occasion.",
+    },
+    {
+      icon: Heart,
+      title: "Made with Love",
+      description: "Every cake is prepared with care and attention.",
+    },
+    {
+      icon: ShoppingBag,
+      title: "Easy Ordering",
+      description: "Order your favorite cake with just a few clicks.",
+    },
+    {
+      icon: PartyPopper,
+      title: "Perfect for Every Occasion",
+      description: "Make birthdays and celebrations more memorable.",
+    },
+  ];
 
   return (
     <main>
-      <section className="relative">
+      <section className="home-hero relative isolate">
         <img
           src={content["hero_image"] || hero}
           alt="Smart Cake Shop celebration cake"
@@ -81,18 +103,23 @@ function Index() {
           height={1008}
           className="home-hero-image h-[50vh] min-h-80 max-h-[42rem] w-full object-cover sm:h-[65vh]"
         />
-        <div className="home-hero-copy absolute inset-0 mx-auto flex max-w-6xl flex-col justify-center px-4">
-          <h1 className="max-w-lg text-4xl text-cocoa sm:text-5xl md:text-6xl">
-            {content["hero_title"] || t("homeTitle")}
-          </h1>
-          <p className="mt-4 max-w-md text-muted-foreground">
-            {content["hero_subtitle"] || t("homeSubtitle")}
-          </p>
-          <Button asChild size="lg" className="mt-6 w-fit">
-            <Link to="/cakes" search={{ q: "" }}>
-              {t("browseCakes")}
-            </Link>
-          </Button>
+        <div className="home-hero-copy absolute inset-0 flex flex-col justify-center px-4">
+          <div className="home-hero-content mx-auto w-full max-w-6xl">
+            <p className="home-hero-kicker text-xs font-semibold uppercase tracking-[0.18em] text-primary">
+              Small-batch joy, baked fresh
+            </p>
+            <h1 className="max-w-lg text-4xl text-cocoa sm:text-5xl md:text-6xl">
+              {content["hero_title"] || t("homeTitle")}
+            </h1>
+            <p className="mt-4 max-w-md text-muted-foreground">
+              {content["hero_subtitle"] || t("homeSubtitle")}
+            </p>
+            <Button asChild size="lg" className="mt-6 w-fit">
+              <Link to="/cakes" search={{ q: "" }}>
+                {t("browseCakes")}
+              </Link>
+            </Button>
+          </div>
         </div>
       </section>
       <section className="mx-auto max-w-6xl px-4 py-10 sm:py-14">
@@ -154,6 +181,43 @@ function Index() {
         ) : (
           <p className="text-sm text-muted-foreground">{t("noCakesMatch")}</p>
         )}
+      </section>
+      <section
+        id="why-choose-us"
+        className="benefits-section mx-auto max-w-6xl px-4 py-8 sm:py-12"
+        aria-labelledby="benefits-title"
+      >
+        <div className="benefits-heading">
+          <p className="section-eyebrow">Thoughtfully baked for you</p>
+          <h2 id="benefits-title">Why Choose Smart Cake Shop?</h2>
+        </div>
+        <div className="benefits-grid">
+          {benefits.map(({ icon: Icon, title, description }) => (
+            <article key={title} className="benefit-card">
+              <span className="benefit-icon">
+                <Icon aria-hidden="true" />
+              </span>
+              <h3>{title}</h3>
+              <p>{description}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+      <section className="shop-cta-section mx-auto max-w-6xl px-4 py-10 sm:py-14">
+        <div className="shop-cta">
+          <p className="shop-cta-eyebrow">Something sweet is waiting</p>
+          <h2>Make Every Celebration Sweeter!</h2>
+          <p>
+            Find the perfect cake for your special moments. Explore our collection and order your
+            favorite today.
+          </p>
+          <Button asChild size="lg" variant="secondary" className="shop-cta-button">
+            <Link to="/cakes" search={{ q: "" }}>
+              Explore Our Cakes
+              <ArrowRight aria-hidden="true" />
+            </Link>
+          </Button>
+        </div>
       </section>
     </main>
   );

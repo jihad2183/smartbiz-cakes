@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ShieldCheck } from "lucide-react";
+import { BrandLogo } from "@/components/BrandLogo";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -60,7 +61,8 @@ function AdminLogin() {
 
   return (
     <main className="admin-login-page mx-auto max-w-sm px-4 py-16">
-      <ShieldCheck className="mb-3 h-10 w-10 text-primary" />
+      <BrandLogo className="mb-8" />
+      <ShieldCheck className="mb-3 h-10 w-10 text-primary" aria-hidden="true" />
       <h1 className="text-3xl">Admin portal login</h1>
       <p className="mt-2 text-sm text-muted-foreground">Only approved administrators can enter.</p>
       <form onSubmit={submit} className="auth-form mt-6 space-y-3">

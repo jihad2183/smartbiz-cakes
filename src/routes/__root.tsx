@@ -18,6 +18,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { CartProvider } from "@/hooks/use-cart";
 import { LanguageProvider, useLanguage } from "@/hooks/use-language";
+import { BrandLogo } from "@/components/BrandLogo";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Toaster } from "@/components/ui/sonner";
 import { useSiteContent } from "@/hooks/use-site-content";
@@ -90,9 +91,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Smart Cake Shop" },
-      { name: "description", content: "Shop celebration cakes at Smart Cake Shop." },
+      {
+        name: "description",
+        content: "Beautifully crafted cakes for every celebration, made fresh at Smart Cake Shop.",
+      },
+      { name: "theme-color", content: "#FFF4E6" },
       { property: "og:title", content: "Smart Cake Shop" },
-      { property: "og:description", content: "Shop celebration cakes at Smart Cake Shop." },
+      {
+        property: "og:description",
+        content: "Beautifully crafted cakes for every celebration, made fresh at Smart Cake Shop.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -101,7 +109,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+      { rel: "alternate icon", href: "/favicon.ico", type: "image/x-icon" },
     ],
   }),
   shellComponent: RootShell,
@@ -126,6 +135,8 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const isAdminPage = pathname.startsWith("/admin");
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -134,10 +145,10 @@ function RootComponent() {
         <ReferralAttribution />
         <LanguageProvider>
           <CartProvider>
-            <SiteHeader />
+            {!isAdminPage && <SiteHeader />}
             <MobileBottomNavigation />
             <Outlet />
-            <ShopFooter />
+            {!isAdminPage && <ShopFooter />}
             <Toaster />
           </CartProvider>
         </LanguageProvider>
@@ -260,19 +271,108 @@ function ReferralAttribution() {
 
 function ShopFooter() {
   const { data: content = {} } = useSiteContent();
+  const isHttpsUrl = (value: string | undefined) => {
+    if (!value) return false;
+    try {
+      return new URL(value).protocol === "https:";
+    } catch {
+      return false;
+    }
+  };
+  const allowedSocialHosts = {
+    Facebook: ["facebook.com", "fb.com"],
+    Instagram: ["instagram.com"],
+    YouTube: ["youtube.com", "youtu.be"],
+  } as const;
+  const socialLinks = (
+    [
+      { label: "Facebook", href: content["facebook_url"] },
+      { label: "Instagram", href: content["instagram_url"] },
+      { label: "YouTube", href: content["youtube_url"] },
+    ] as const
+  ).map((link) => {
+    if (typeof link.href !== "string" || !isHttpsUrl(link.href)) {
+      return { label: link.label, href: undefined };
+    }
+    const host = new URL(link.href).hostname;
+    const allowedHosts = allowedSocialHosts[link.label];
+    const isAllowedHost = allowedHosts.some(
+      (domain) => host === domain || host.endsWith(`.${domain}`),
+    );
+    return { label: link.label, href: isAllowedHost ? link.href : undefined };
+  });
+  const policyLinks = [
+    { label: "Privacy Policy", href: content["privacy_policy_url"] },
+    { label: "Terms & Conditions", href: content["terms_url"] },
+  ].filter((link) => isHttpsUrl(link.href));
+  const footerDescription =
+    "Your happiness is our inspiration. Discover delicious cakes and make every moment a little more special.";
+
   return (
-    <footer className="mt-8 border-t">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-start justify-between gap-6 px-4 py-8">
-        <div>
-          <p className="font-display text-xl">{content["shop_name"] || "Smart Cake Shop"}</p>
-          {content["footer_text"] && (
-            <p className="mt-2 text-sm text-muted-foreground">{content["footer_text"]}</p>
-          )}
-          <p className="mt-2 text-sm">
-            {content["contact_phone"]} {content["contact_email"]}
+    <footer className="site-footer mt-8 border-t">
+      <div className="site-footer-grid mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-2 lg:grid-cols-[1.35fr_repeat(3,1fr)] lg:py-12">
+        <div className="site-footer-brand">
+          <BrandLogo name={content["shop_name"] || "Smart Cake Shop"} />
+          <p className="site-footer-tagline">Making Every Celebration Sweeter.</p>
+          <p className="mt-4 max-w-md text-sm leading-6 text-muted-foreground">
+            {footerDescription}
           </p>
-          {content["shop_address"] && <p className="text-sm">{content["shop_address"]}</p>}
+          {content["footer_text"] && content["footer_text"] !== footerDescription && (
+            <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
+              {content["footer_text"]}
+            </p>
+          )}
         </div>
+        <nav className="site-footer-links" aria-label="Footer navigation">
+          <h2 className="mb-3 text-base font-semibold">Quick Links</h2>
+          <Link to="/">Home</Link>
+          <Link to="/cakes" search={{ q: "" }}>
+            All Cakes
+          </Link>
+          <a href="/#why-choose-us">About Us</a>
+          <a href="/#contact">Contact Us</a>
+        </nav>
+        <div className="site-footer-support">
+          <h2 className="mb-3 text-base font-semibold">Customer Support</h2>
+          <a href="/#contact">Contact Information</a>
+          {policyLinks.map((link) => (
+            <a key={link.label} href={link.href} target="_blank" rel="noopener noreferrer">
+              {link.label}
+            </a>
+          ))}
+          {!policyLinks.some((link) => link.label === "Privacy Policy") && (
+            <span>Privacy Policy</span>
+          )}
+          {!policyLinks.some((link) => link.label === "Terms & Conditions") && (
+            <span>Terms &amp; Conditions</span>
+          )}
+          <div id="contact" className="site-footer-contact">
+            {content["contact_phone"] && (
+              <a href={`tel:${content["contact_phone"]}`}>{content["contact_phone"]}</a>
+            )}
+            {content["contact_email"] && (
+              <a href={`mailto:${content["contact_email"]}`}>{content["contact_email"]}</a>
+            )}
+            {content["shop_address"] && <p>{content["shop_address"]}</p>}
+          </div>
+        </div>
+        <div className="site-footer-social">
+          <h2 className="mb-3 text-base font-semibold">Follow Us</h2>
+          {socialLinks.map((link) =>
+            link.href ? (
+              <a key={link.label} href={link.href} target="_blank" rel="noopener noreferrer">
+                {link.label}
+              </a>
+            ) : (
+              <span key={link.label}>{link.label}</span>
+            ),
+          )}
+        </div>
+      </div>
+      <div className="site-footer-bottom">
+        <p className="mx-auto max-w-6xl px-4 py-4 text-xs text-muted-foreground">
+          © 2026 Smart Cake Shop. All Rights Reserved.
+        </p>
       </div>
     </footer>
   );
