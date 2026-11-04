@@ -53,7 +53,7 @@ function OrdersPage() {
   if (loading) return <main className="mx-auto max-w-3xl px-4 py-10">{t("loading")}</main>;
   if (!user)
     return (
-      <main className="mx-auto max-w-3xl px-4 py-10">
+      <main className="orders-page mx-auto max-w-3xl px-4 py-10">
         <h1 className="text-4xl">{t("myOrders")}</h1>
         <Button asChild className="mt-6">
           <Link to="/auth">{t("signInToSeeOrders")}</Link>
@@ -73,7 +73,7 @@ function OrdersPage() {
           </Link>
         </p>
       ) : (
-        <div className="mt-6 space-y-6">
+        <div className="orders-list mt-6 space-y-6">
           {orders.map((o) => {
             return (
               <Link
@@ -81,7 +81,7 @@ function OrdersPage() {
                 to="/orders/$id"
                 params={{ id: o.id }}
                 aria-label={`View details for order ${o.id}`}
-                className="block rounded-2xl bg-card p-4 shadow-soft transition hover:ring-1 hover:ring-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5"
+                className="order-card block rounded-2xl bg-card p-4 shadow-soft transition hover:ring-1 hover:ring-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5"
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
@@ -96,7 +96,7 @@ function OrdersPage() {
                     {statusLabel(o.status)}
                   </span>
                 </div>
-                <ul className="mt-4 divide-y">
+                <ul className="order-items mt-4 divide-y">
                   {o.order_items.map((it) => (
                     <li key={it.id} className="flex items-center gap-3 py-3">
                       {it.image_url ? (
@@ -111,10 +111,10 @@ function OrdersPage() {
                       ) : (
                         <div className="h-14 w-14 rounded-md bg-muted" />
                       )}
-                      <span className="flex-1">
+                      <span className="min-w-0 flex-1 break-words">
                         {it.cake_name} · {it.pounds} lb
                       </span>
-                      <span className="text-sm text-muted-foreground">
+                      <span className="shrink-0 text-sm text-muted-foreground">
                         {it.quantity_num ?? it.quantity} × {formatPrice(it.unit_price)}
                       </span>
                     </li>

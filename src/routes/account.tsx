@@ -155,12 +155,16 @@ function AccountPage() {
   ];
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8 sm:py-10">
-      <header className="flex items-center gap-4 rounded-2xl bg-card p-5 shadow-soft sm:p-7">
+    <main className="account-page mx-auto max-w-3xl px-4 py-8 sm:py-10">
+      <header className="account-profile-header flex items-center gap-4 rounded-2xl bg-card p-5 shadow-soft sm:p-7">
         {avatar ? (
-          <img src={avatar} alt="" className="h-20 w-20 rounded-full border object-cover" />
+          <img
+            src={avatar}
+            alt=""
+            className="account-profile-avatar h-20 w-20 rounded-full border object-cover"
+          />
         ) : (
-          <div className="grid h-20 w-20 place-items-center rounded-full bg-secondary text-cocoa">
+          <div className="account-profile-avatar grid h-20 w-20 place-items-center rounded-full bg-secondary text-cocoa">
             <UserRound className="h-9 w-9" />
           </div>
         )}
@@ -180,7 +184,7 @@ function AccountPage() {
           Account details could not be loaded. Please try again.
         </p>
       ) : (
-        <section className="mt-5 rounded-2xl bg-card p-5 shadow-soft sm:p-7">
+        <section className="account-details-card mt-5 rounded-2xl bg-card p-5 shadow-soft sm:p-7">
           <h2 className="text-xl font-semibold">{t("accountDetails")}</h2>
           <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
             <div>
@@ -203,7 +207,10 @@ function AccountPage() {
         </section>
       )}
 
-      <nav aria-label={t("myAccountTitle")} className="mt-5 grid gap-3 sm:grid-cols-2">
+      <nav
+        aria-label={t("myAccountTitle")}
+        className="account-actions mt-5 grid gap-3 sm:grid-cols-2"
+      >
         {sections.map(({ to, label, icon: Icon }) => (
           <Link
             key={label}
@@ -238,7 +245,10 @@ function AccountPage() {
         </a>
       </nav>
 
-      <section id="invite-friends" className="mt-5 rounded-2xl bg-card p-5 shadow-soft sm:p-7">
+      <section
+        id="invite-friends"
+        className="account-invites mt-5 rounded-2xl bg-card p-5 shadow-soft sm:p-7"
+      >
         <h2 className="text-xl font-semibold">{t("inviteFriends")}</h2>
         {profile?.referral_code && (
           <div className="mt-4 space-y-3">

@@ -68,7 +68,7 @@ function CartPage() {
   }, [deliveryAvailable, fulfillment, pickupAvailable, setFulfillment]);
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:py-10">
+    <main className="cart-page mx-auto max-w-6xl px-4 py-8 sm:py-10">
       <OrderProgress step="cart" />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
@@ -299,11 +299,24 @@ function CartPage() {
               <Button asChild variant="outline" className="mt-4 w-full">
                 <Link to="/vouchers">Apply Voucher</Link>
               </Button>
-              <Button asChild size="lg" className="mt-5 w-full">
+              <Button asChild size="lg" className="cart-summary-checkout mt-5 w-full">
                 <Link to="/checkout">{t("continueCheckout")}</Link>
               </Button>
             </section>
           </aside>
+        </div>
+      )}
+      {items.length > 0 && (
+        <div className="cart-mobile-checkout" aria-label="Cart checkout">
+          <div>
+            <p className="text-xs text-muted-foreground">
+              {t("totalPayable")} · {count} {t("items")}
+            </p>
+            <p className="font-semibold">{formatPrice(total + deliveryCharge)}</p>
+          </div>
+          <Button asChild size="sm">
+            <Link to="/checkout">{t("continueCheckout")}</Link>
+          </Button>
         </div>
       )}
     </main>

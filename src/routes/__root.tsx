@@ -137,6 +137,7 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const isAdminPage = pathname.startsWith("/admin");
+  const isHomePage = pathname === "/";
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -148,7 +149,7 @@ function RootComponent() {
             {!isAdminPage && <SiteHeader />}
             <MobileBottomNavigation />
             <Outlet />
-            {!isAdminPage && <ShopFooter />}
+            {isHomePage && <ShopFooter />}
             <Toaster />
           </CartProvider>
         </LanguageProvider>
