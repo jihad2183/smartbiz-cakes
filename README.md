@@ -204,3 +204,16 @@ choose a delivery point manually.
 Apply this migration after 0014 before deploying the registration and checkout changes. Registration
 uses browser geolocation and OpenStreetMap Nominatim; neither requires an API key. GPS permission
 is optional, and customers can choose a location manually.
+
+### Migration 0016
+
+`drizzle/migrations/0016_payment_method_account_details.sql`
+
+- Adds nullable account number, account type, and account holder name fields to existing payment
+  method rows. It is safe to apply if any of these columns already exist.
+- Restricts configured account types to Personal, Merchant, or Agent without changing payment data
+  or existing row-level security policies.
+- Requests a PostgREST schema-cache refresh after the migration commits.
+
+Apply this migration in the Supabase SQL Editor before deploying code that reads or saves payment
+account details. It does not create or recreate the payment methods table.

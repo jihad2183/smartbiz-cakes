@@ -390,6 +390,9 @@ export type Database = {
       };
       payment_methods: {
         Row: {
+          account_holder_name: string | null;
+          account_number: string | null;
+          account_type: string | null;
           enabled: boolean;
           id: string;
           instructions: string;
@@ -397,6 +400,9 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          account_holder_name?: string | null;
+          account_number?: string | null;
+          account_type?: string | null;
           enabled?: boolean;
           id: string;
           instructions?: string;
@@ -404,6 +410,9 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          account_holder_name?: string | null;
+          account_number?: string | null;
+          account_type?: string | null;
           enabled?: boolean;
           id?: string;
           instructions?: string;

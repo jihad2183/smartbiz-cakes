@@ -1,9 +1,10 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ShoppingBag, Search, UserRound } from "lucide-react";
-import { useEffect, useState } from "react";
+import { MapPin, ShoppingBag, Search, UserRound } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { BrandLogo } from "@/components/BrandLogo";
+import { DeliveryLocationSelector } from "@/components/DeliveryLocationSelector";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/use-auth";
@@ -11,6 +12,8 @@ import { useCart } from "@/hooks/use-cart";
 import { supabase } from "@/integrations/supabase/client";
 import { useSiteContent } from "@/hooks/use-site-content";
 import { useLanguage } from "@/hooks/use-language";
+import { useSelectedDeliveryLocation } from "@/hooks/use-selected-delivery-location";
+import { isValidDeliveryCoordinates } from "@/lib/delivery-location";
 
 export function SiteHeader() {
   const { data: content = {} } = useSiteContent();
@@ -20,6 +23,27 @@ export function SiteHeader() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [q, setQ] = useState("");
+  const [locationDialogOpen, setLocationDialogOpen] = useState(false);
+  const [requestLocationOnOpen, setRequestLocationOnOpen] = useState(false);
+  const syncingLocation = useRef<string | null>(null);
+  const { location, loaded: locationLoaded, setLocation } = useSelectedDeliveryLocation();
+  const {
+    data: savedLocation,
+    isLoading: savedLocationLoading,
+    error: savedLocationError,
+  } = useQuery({
+    queryKey: ["header-delivery-location", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("location_latitude,location_longitude,location_address")
+        .eq("id", user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
   const { data: avatarUrl, error: avatarError } = useQuery({
     queryKey: ["header-avatar", user?.id],
     enabled: !!user,
@@ -44,6 +68,69 @@ export function SiteHeader() {
     console.error("Could not load the profile photo in the site header.", avatarError);
     toast.error("Your profile photo could not be loaded.");
   }, [avatarError]);
+
+  useEffect(() => {
+    if (!savedLocationError) return;
+    console.error("Could not load the saved delivery location.", savedLocationError);
+    toast.error("Your saved delivery location could not be loaded.");
+  }, [savedLocationError]);
+
+  useEffect(() => {
+    if (!locationLoaded || location || !savedLocation) return;
+    const point = {
+      latitude: savedLocation.location_latitude ?? Number.NaN,
+      longitude: savedLocation.location_longitude ?? Number.NaN,
+    };
+    if (!isValidDeliveryCoordinates(point)) return;
+    try {
+      setLocation({
+        ...point,
+        address: savedLocation.location_address ?? "",
+      });
+    } catch (error) {
+      console.error("Could not load the saved delivery location.", error);
+      toast.error("Your saved delivery location could not be loaded.");
+    }
+  }, [location, locationLoaded, savedLocation, setLocation]);
+
+  useEffect(() => {
+    if (!user || !location || savedLocationLoading || !savedLocation) return;
+    if (
+      savedLocation.location_latitude === location.latitude &&
+      savedLocation.location_longitude === location.longitude &&
+      (savedLocation.location_address ?? "") === location.address
+    ) {
+      return;
+    }
+    const fingerprint = `${user.id}:${location.latitude}:${location.longitude}:${location.address}`;
+    if (syncingLocation.current === fingerprint) return;
+    syncingLocation.current = fingerprint;
+    void (async () => {
+      try {
+        const { error } = await supabase
+          .from("profiles")
+          .update({
+            location_latitude: location.latitude,
+            location_longitude: location.longitude,
+            location_address: location.address || null,
+            location_updated_at: new Date().toISOString(),
+          })
+          .eq("id", user.id);
+        if (error) throw error;
+        await qc.invalidateQueries({ queryKey: ["header-delivery-location", user.id] });
+        await qc.invalidateQueries({ queryKey: ["checkout-profile", user.id] });
+        await qc.invalidateQueries({ queryKey: ["my-profile", user.id] });
+      } catch (error) {
+        console.error(
+          "Could not sync the selected delivery location to the customer profile.",
+          error,
+        );
+        toast.error("Your selected location could not be saved to your profile.");
+      } finally {
+        if (syncingLocation.current === fingerprint) syncingLocation.current = null;
+      }
+    })();
+  }, [location, qc, savedLocation, savedLocationLoading, user]);
 
   const signOut = async () => {
     try {
@@ -140,6 +227,63 @@ export function SiteHeader() {
           </Button>
         )}
       </div>
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 px-4 pb-3">
+        {location ? (
+          <div className="flex min-w-0 items-center gap-2 text-sm">
+            <MapPin className="h-4 w-4 shrink-0 text-primary" />
+            <span
+              className="max-w-[min(60vw,36rem)] truncate"
+              title={location.address || undefined}
+            >
+              {location.address || "Delivery location selected"}
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setRequestLocationOnOpen(false);
+                setLocationDialogOpen(true);
+              }}
+            >
+              Change Location
+            </Button>
+          </div>
+        ) : locationLoaded && (!user || !savedLocationLoading) ? (
+          <div className="flex w-full flex-wrap items-center gap-2 rounded-lg bg-secondary/60 p-2 text-sm">
+            <span className="mr-auto">Allow Location Access to find your delivery location.</span>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                setRequestLocationOnOpen(true);
+                setLocationDialogOpen(true);
+              }}
+            >
+              Allow Location
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setRequestLocationOnOpen(false);
+                setLocationDialogOpen(true);
+              }}
+            >
+              Select Location Manually
+            </Button>
+          </div>
+        ) : null}
+      </div>
+      <DeliveryLocationSelector
+        open={locationDialogOpen}
+        onOpenChange={(open) => {
+          setLocationDialogOpen(open);
+          if (!open) setRequestLocationOnOpen(false);
+        }}
+        requestLocationOnOpen={requestLocationOnOpen}
+      />
       <nav className="site-header-mobile-nav flex flex-wrap gap-x-4 gap-y-2 px-4 pb-2 text-sm md:hidden">
         <Link to="/cakes" search={{ q: "" }}>
           {t("allCakes")}

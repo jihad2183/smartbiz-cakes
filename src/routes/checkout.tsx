@@ -15,12 +15,13 @@ import { cakeImage } from "@/lib/cake-images";
 import { useNavigate } from "@tanstack/react-router";
 import { useSiteContent } from "@/hooks/use-site-content";
 import { useFulfillment, type Fulfillment } from "@/hooks/use-fulfillment";
-import { useInitialDeliveryLocation } from "@/hooks/use-initial-delivery-location";
+import { useSelectedDeliveryLocation } from "@/hooks/use-selected-delivery-location";
 import { OrderProgress } from "@/components/OrderProgress";
 import { useLanguage } from "@/hooks/use-language";
 import { isValidPhoneNumber } from "@/lib/phone";
 import { validateVoucher, type AppliedVoucher } from "@/lib/vouchers";
 import { DeliveryLocationMap } from "@/components/DeliveryLocationMap";
+import { PaymentMethodDetails } from "@/components/PaymentMethodDetails";
 import {
   getCurrentDeviceLocation,
   isValidDeliveryCoordinates,
@@ -50,6 +51,11 @@ function CheckoutPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { fulfillment, setFulfillment } = useFulfillment();
+  const {
+    location: selectedDeliveryLocation,
+    loaded: selectedDeliveryLocationLoaded,
+    setLocation: setSelectedDeliveryLocation,
+  } = useSelectedDeliveryLocation();
   const { t } = useLanguage();
   const { data: content = {} } = useSiteContent();
   const idempotencyKey = useRef<string | null>(null);
@@ -82,7 +88,7 @@ function CheckoutPage() {
     | "timeout"
     | "unsupported"
     | "error"
-  >("detecting");
+  >("ready");
   const [reverseGeocodeUnavailable, setReverseGeocodeUnavailable] = useState(false);
   const geolocationRequestId = useRef(0);
   const submissionInProgress = useRef(false);
@@ -168,12 +174,13 @@ function CheckoutPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("payment_methods")
-        .select("id,label,enabled,instructions")
+        .select("id,label,enabled,instructions,account_number,account_type,account_holder_name")
         .eq("enabled", true)
         .order("label");
       if (error) throw error;
       return data;
     },
+    refetchInterval: 30_000,
   });
   const availablePaymentMethods = paymentMethods.filter(
     (method) =>
@@ -258,19 +265,6 @@ function CheckoutPage() {
   useEffect(() => {
     setF((current) => ({ ...current, fulfillment }));
   }, [fulfillment]);
-  const hasSavedProfileLocation = isValidDeliveryCoordinates(
-    profile
-      ? {
-          latitude: profile.location_latitude ?? Number.NaN,
-          longitude: profile.location_longitude ?? Number.NaN,
-        }
-      : null,
-  );
-  useInitialDeliveryLocation(
-    f.fulfillment,
-    !loading && !profileLoading && !hasSavedProfileLocation,
-    requestCurrentLocation,
-  );
   useEffect(
     () => () => {
       reverseGeocodeController.current?.abort();
@@ -288,6 +282,23 @@ function CheckoutPage() {
     }));
   }, [profile]);
   useEffect(() => {
+    if (!selectedDeliveryLocationLoaded || !selectedDeliveryLocation) return;
+    const point = {
+      latitude: selectedDeliveryLocation.latitude,
+      longitude: selectedDeliveryLocation.longitude,
+    };
+    setDeliveryCoordinates(point);
+    setMapAddress(selectedDeliveryLocation.address);
+    setLocationConfirmed(true);
+    setReverseGeocodeUnavailable(!selectedDeliveryLocation.address);
+    setLocationStatus("ready");
+    setF((current) => ({
+      ...current,
+      address: selectedDeliveryLocation.address || current.address,
+    }));
+  }, [selectedDeliveryLocation, selectedDeliveryLocationLoaded]);
+  useEffect(() => {
+    if (!selectedDeliveryLocationLoaded || selectedDeliveryLocation) return;
     if (loading || !user || profileLoading || initializedProfileLocation.current === user.id)
       return;
     const savedLocation = {
@@ -301,7 +312,23 @@ function CheckoutPage() {
     setLocationConfirmed(true);
     setReverseGeocodeUnavailable(false);
     setLocationStatus("ready");
-  }, [hasSavedProfileLocation, loading, profile, profileLoading, user]);
+    try {
+      setSelectedDeliveryLocation({
+        ...savedLocation,
+        address: profile?.location_address ?? "",
+      });
+    } catch (error) {
+      console.error("Could not save the profile location in this browser.", error);
+    }
+  }, [
+    loading,
+    profile,
+    profileLoading,
+    selectedDeliveryLocation,
+    selectedDeliveryLocationLoaded,
+    setSelectedDeliveryLocation,
+    user,
+  ]);
   useEffect(() => {
     const storedAddressId = localStorage.getItem("smartcake-selected-address");
     if (storedAddressId) setSelectedAddressId(storedAddressId);
@@ -531,6 +558,7 @@ function CheckoutPage() {
     setLocationConfirmed(true);
     setReverseGeocodeUnavailable(false);
     setLocationStatus("geocoding");
+    let confirmedAddress = mapAddress;
 
     const timeout = window.setTimeout(() => controller.abort(), 7000);
     try {
@@ -552,8 +580,10 @@ function CheckoutPage() {
         typeof result.display_name === "string"
           ? result.display_name
           : "";
-      if (displayName) setMapAddress(displayName);
-      else setReverseGeocodeUnavailable(true);
+      if (displayName) {
+        confirmedAddress = displayName;
+        setMapAddress(displayName);
+      } else setReverseGeocodeUnavailable(true);
     } catch (error) {
       if (!(error instanceof Error && error.name === "AbortError")) {
         console.warn("Could not retrieve a readable address for the selected map location.", error);
@@ -564,6 +594,34 @@ function CheckoutPage() {
       if (reverseGeocodeController.current === controller) {
         reverseGeocodeController.current = null;
         setLocationStatus("ready");
+        try {
+          setSelectedDeliveryLocation({
+            latitude: selectedPoint.latitude,
+            longitude: selectedPoint.longitude,
+            address: confirmedAddress.slice(0, 1000),
+          });
+        } catch (error) {
+          console.error("Could not save the selected delivery location in this browser.", error);
+          toast.error("The selected delivery location could not be saved.");
+        }
+        if (user) {
+          const { error } = await supabase
+            .from("profiles")
+            .update({
+              location_latitude: selectedPoint.latitude,
+              location_longitude: selectedPoint.longitude,
+              location_address: confirmedAddress.slice(0, 1000) || null,
+              location_updated_at: new Date().toISOString(),
+            })
+            .eq("id", user.id);
+          if (error) {
+            console.error("Could not save the delivery location to the customer profile.", error);
+            toast.error("Location selected, but it could not be saved to your profile.");
+          } else {
+            await queryClient.invalidateQueries({ queryKey: ["checkout-profile", user.id] });
+            await queryClient.invalidateQueries({ queryKey: ["my-profile", user.id] });
+          }
+        }
       }
     }
   };
@@ -962,18 +1020,6 @@ function CheckoutPage() {
                           </label>
                         ))}
                       </div>
-                      {!availablePaymentMethods.some((method) => method.id === "upay") && (
-                        <div
-                          className="mt-2 flex items-center gap-3 rounded-xl border border-dashed p-3 text-muted-foreground"
-                          aria-disabled="true"
-                        >
-                          <input type="radio" name="payment-method" disabled />
-                          <span className="grid h-9 min-w-12 place-items-center rounded-md bg-muted px-2 text-xs font-bold uppercase">
-                            upay
-                          </span>
-                          <span className="text-sm">upay · {t("paymentSetupRequired")}</span>
-                        </div>
-                      )}
                     </div>
                   ) : (
                     <p role="alert" className="mt-4 text-sm text-destructive">
@@ -988,10 +1034,14 @@ function CheckoutPage() {
                       <p className="text-xs font-medium text-amber-800">
                         {t("manualVerification")}
                       </p>
-                      <p className="text-muted-foreground">
-                        {selectedPayment?.instructions ||
-                          "Contact the shop for current payment instructions."}
-                      </p>
+                      {selectedPayment && (
+                        <PaymentMethodDetails
+                          accountNumber={selectedPayment.account_number}
+                          accountType={selectedPayment.account_type}
+                          accountHolderName={selectedPayment.account_holder_name}
+                          instructions={selectedPayment.instructions}
+                        />
+                      )}
                       <label className="grid gap-1.5 font-medium">
                         Transaction ID / reference
                         <Input

@@ -34,6 +34,7 @@ import { generateUuid } from "@/lib/uuid";
 import { isConfirmedOrder } from "@/lib/financial-report";
 import { FinancialDashboard } from "@/components/admin/FinancialDashboard";
 import { OrderPaymentEntry } from "@/components/admin/OrderPaymentEntry";
+import { PaymentMethodSettings } from "@/components/admin/PaymentMethodSettings";
 import { DeliveryLocationMap } from "@/components/DeliveryLocationMap";
 import { BrandLogo } from "@/components/BrandLogo";
 import { Button } from "@/components/ui/button";
@@ -77,6 +78,7 @@ type Section =
   | "carts"
   | "vouchers"
   | "payments"
+  | "payment-methods"
   | "delivery"
   | "support"
   | "cakes"
@@ -91,6 +93,7 @@ const nav: [Section, string, typeof LayoutDashboard][] = [
   ["carts", "Customer carts", ShoppingBag],
   ["vouchers", "Vouchers", BadgePercent],
   ["payments", "Payments", CreditCard],
+  ["payment-methods", "Payment Methods", CreditCard],
   ["delivery", "Delivery management", Truck],
   ["support", "Support requests", CircleHelp],
   ["cakes", "Cakes", CakeIcon],
@@ -100,6 +103,12 @@ const nav: [Section, string, typeof LayoutDashboard][] = [
   ["team", "Teams & Access", Users],
   ["content", "Website content", Settings],
 ];
+const configurablePaymentMethods = [
+  { id: "bkash", label: "bKash" },
+  { id: "nagad", label: "Nagad" },
+  { id: "rocket", label: "Rocket" },
+  { id: "upay", label: "upay" },
+] as const;
 const statuses = [
   "pending",
   "confirmed",
@@ -1374,62 +1383,74 @@ function AdminPage() {
                 <p className="py-4 text-sm text-muted-foreground">No orders to reconcile.</p>
               )}
             </div>
-            <h2 className="mb-3 text-xl font-semibold">Payment method settings</h2>
-            <div className="divide-y rounded-2xl bg-card px-4 shadow-soft sm:px-6">
-              {paymentMethods.map((method) => (
-                <article
-                  key={method.id}
-                  className="grid gap-3 py-5 sm:grid-cols-[minmax(150px,0.6fr)_minmax(0,1.4fr)_auto] sm:items-center"
-                >
-                  <div>
-                    <p className="font-semibold">{method.label}</p>
-                    <p className="text-xs uppercase text-muted-foreground">
-                      {method.id.replaceAll("_", " ")}
-                    </p>
-                  </div>
-                  <Input
-                    aria-label={`${method.label} payment instructions`}
-                    placeholder="Instructions shown at checkout"
-                    defaultValue={method.instructions}
-                    onBlur={(event) => {
-                      if (event.target.value !== method.instructions) {
-                        act(
-                          () =>
-                            supabase
-                              .from("payment_methods")
-                              .update({
-                                instructions: event.target.value,
-                                updated_at: new Date().toISOString(),
-                              })
-                              .eq("id", method.id),
-                          "Payment instructions saved",
-                        );
+          </section>
+        )}
+
+        {section === "payment-methods" && (
+          <section>
+            <h1 className="mb-2 text-3xl">Payment Methods</h1>
+            <p className="mb-5 text-sm text-muted-foreground">
+              Configure the account details customers see when they choose a mobile payment method.
+              Only enabled methods are available at checkout.
+            </p>
+            <div className="mb-4 flex flex-wrap gap-2">
+              {configurablePaymentMethods
+                .filter((method) => !paymentMethods.some((existing) => existing.id === method.id))
+                .map((method) => (
+                  <Button
+                    key={method.id}
+                    type="button"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() =>
+                      void act(
+                        () =>
+                          supabase.from("payment_methods").insert({
+                            id: method.id,
+                            label: method.label,
+                            enabled: false,
+                            instructions: "",
+                          }),
+                        `${method.label} payment method added`,
+                      )
+                    }
+                  >
+                    <Plus />
+                    Add {method.label}
+                  </Button>
+                ))}
+            </div>
+            <div className="grid gap-4">
+              {paymentMethods
+                .filter((method) =>
+                  configurablePaymentMethods.some((supported) => supported.id === method.id),
+                )
+                .map((method) => (
+                  <PaymentMethodSettings
+                    key={method.id}
+                    method={method}
+                    busy={busy}
+                    onSave={(updates) =>
+                      act(
+                        () =>
+                          supabase
+                            .from("payment_methods")
+                            .update({ ...updates, updated_at: new Date().toISOString() })
+                            .eq("id", method.id),
+                        `${method.label} payment settings saved`,
+                      )
+                    }
+                    onDelete={() => {
+                      if (!window.confirm(`Delete ${method.label} payment method configuration?`)) {
+                        return Promise.resolve(false);
                       }
+                      return act(
+                        () => supabase.from("payment_methods").delete().eq("id", method.id),
+                        `${method.label} payment method deleted`,
+                      );
                     }}
                   />
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={method.enabled}
-                      disabled={busy}
-                      onChange={(event) =>
-                        act(
-                          () =>
-                            supabase
-                              .from("payment_methods")
-                              .update({
-                                enabled: event.target.checked,
-                                updated_at: new Date().toISOString(),
-                              })
-                              .eq("id", method.id),
-                          "Payment method updated",
-                        )
-                      }
-                    />
-                    Enabled
-                  </label>
-                </article>
-              ))}
+                ))}
             </div>
           </section>
         )}

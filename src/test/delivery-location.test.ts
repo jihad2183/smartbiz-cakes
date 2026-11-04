@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { useInitialDeliveryLocation } from "@/hooks/use-initial-delivery-location";
 import {
   consumePendingProfileLocation,
@@ -7,6 +7,7 @@ import {
   isValidDeliveryCoordinates,
   savePendingProfileLocation,
 } from "@/lib/delivery-location";
+import { useSelectedDeliveryLocation } from "@/hooks/use-selected-delivery-location";
 
 describe("delivery location helpers", () => {
   beforeEach(() => {
@@ -120,5 +121,23 @@ describe("delivery location helpers", () => {
     expect(requestCurrentLocation).toHaveBeenCalledOnce();
     rerender({ shouldRequestLocation: false });
     expect(requestCurrentLocation).toHaveBeenCalledOnce();
+  });
+
+  it("persists a selected guest location and shares updates between consumers", () => {
+    const first = renderHook(() => useSelectedDeliveryLocation());
+    const second = renderHook(() => useSelectedDeliveryLocation());
+    const location = {
+      latitude: 23.7,
+      longitude: 90.4,
+      address: "Dhaka, Bangladesh",
+    };
+
+    act(() => first.result.current.setLocation(location));
+
+    expect(first.result.current.location).toEqual(location);
+    expect(second.result.current.location).toEqual(location);
+    expect(
+      JSON.parse(localStorage.getItem("smartcake-selected-delivery-location") ?? "null"),
+    ).toEqual(location);
   });
 });
