@@ -231,6 +231,10 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
+.checkout-form-textarea {
+  min-height: 4.5rem;
+}
+
 @media (max-width: 640px) {
   input,
   select,

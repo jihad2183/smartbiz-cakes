@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useCart, formatPrice, lineKey, linePrice } from "@/hooks/use-cart";
 import { isValidQuantity } from "@/lib/order-quantity";
 import { generateUuid } from "@/lib/uuid";
@@ -774,8 +775,10 @@ function CheckoutPage() {
                     <div className="mt-4 grid gap-4">
                       <label className="grid gap-1.5 text-sm font-medium">
                         {t("houseRoad")}
-                        <Input
+                        <Textarea
                           required
+                          rows={2}
+                          className="checkout-form-textarea"
                           autoComplete="street-address"
                           value={f.address}
                           placeholder="Enter your complete house and road address"
@@ -784,7 +787,9 @@ function CheckoutPage() {
                       </label>
                       <label className="grid gap-1.5 text-sm font-medium">
                         Delivery instructions (optional)
-                        <Input
+                        <Textarea
+                          rows={2}
+                          className="checkout-form-textarea"
                           value={f.deliveryInstructions}
                           placeholder="Gate, floor, or other delivery details"
                           onChange={(e) => setF({ ...f, deliveryInstructions: e.target.value })}
